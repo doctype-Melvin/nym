@@ -18,7 +18,7 @@ patterns = [
     {"label": "EMAIL",
     "pattern": [{"TEXT": {"REGEX": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"}}]},
     {"label": "PHONE",
-    "pattern": [{"TEXT": {"REGEX": r"(?:\+49|0049|0)(?:\s?\d){7,15}"}}]},
+    "pattern": [{"TEXT": {"REGEX": r"(?:\+(?:\d{1,3})|00\d{1,3}|0)(?:[ \/\-\.]?\d){4,15}"}}]},
     {"label": "SOCI",
     "pattern": [{"TEXT": {"REGEX": r"@[a-zA-Z0-9_]{2,30}(?=$| )"}}]},
     {"label": "WEB",
