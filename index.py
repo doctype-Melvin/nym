@@ -137,23 +137,11 @@ for path in input_df['Filepath']:
             #full_resume_text.append(re.sub(r'\n\s*\n', '\n', page_text))
             full_resume_text.append(page_text)
     
-    # 1. Glue the individual pages together again
-    #full_content = " ".join(full_resume_text)
-
-    '''
-    # 1. Standardize all whitespace types
-clean_content = re.sub(r'[\t\xa0]', ' ', full_content)
-
-# 2. THE FIX: Strip every individual line, then filter out the truly empty ones
-lines = [line.strip() for line in clean_content.splitlines()]
-clean_content = "\n".join([l for l in lines if l])
-
-# 3. Final horizontal cleanup
-full_content = re.sub(r' +', ' ', clean_content).strip()
-    '''
-    #---------------------------------------
+   
+    # Glue the pages back together
     full_content = "\n".join(full_resume_text)
 
+    # --------- Remove all padding empty whitespace ---------------------------
     # 1. Replace all non-breaking spaces (\xa0) and tabs with standard spaces
     clean_content = re.sub(r'[\t\xa0]', ' ', full_content)
 
@@ -163,13 +151,7 @@ full_content = re.sub(r' +', ' ', clean_content).strip()
     
     # 3. Get all the remaining unnecessary empty spaces
     full_content = re.sub(r' +', ' ', clean_content).strip()
-    # 2. Collapse multiple horizontal spaces into one
-    #clean_content = re.sub(r' +', ' ', clean_content)
-    # 3. Collapse multiple vertical newlines into one
-    #clean_content = re.sub(r'\n+', '\n', clean_content)
-    # 4. Final trim
-    #full_content = clean_content.strip()
-  #---------------------------------------
+
     # Feed the content to the language model
     # --- Here the actual content is passed to spaCy ---
     # spaCy extracts the matched entities
@@ -188,9 +170,6 @@ full_content = re.sub(r' +', ' ', clean_content).strip()
             regex_ents.append(span)
 
     # 2. Append regex hits to original entity list
-    # regex overwrites spaCy results
-    # !!!! this does not replace the spaCy entity label with the one 
-    # !!!! provided in the regex list - though it looks like it
     content.ents = filter_spans(list(content.ents) + regex_ents)
     
     # iterating over the regex_ents list shows all regex matches with
