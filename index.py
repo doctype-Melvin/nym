@@ -101,17 +101,18 @@ whole_content = []
 all_pii = []
 all_text = []
 
+# Loop over all provided filepaths in dir
 for path in input_df['Filepath']:
     if not str(path).lower().endswith('.pdf'):
         whole_content.append(f"SKIPPED: not a PDF {path}")
         all_pii.append("SKIPPED: not a PDF")
         continue
-
+    
+    # Use pdfplumber to open pdf
     full_resume_text = []
     with pdfplumber.open(path) as pdf:
         for page in pdf.pages:
             page_text = analyze_layout_and_extract(page)
-            #full_resume_text.append(re.sub(r'\n\s*\n', '\n', page_text))
             full_resume_text.append(page_text)
     
    
