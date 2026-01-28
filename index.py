@@ -2,10 +2,8 @@ import knime.scripting.io as knio
 import pdfplumber
 import pandas as pd
 import spacy
-from spacy.tokens import Span
-from spacy.util import filter_spans
 import re
-from spacy.pipeline import EntityRuler
+
 
 nlp = spacy.load("de_core_news_lg")
 
@@ -92,37 +90,16 @@ def analyze_layout_and_extract(page):
 # --- layout analyzing function END ---
 
 #print("- Notation - ", patterns[0]['pattern'][0]['TEXT']['REGEX'])
-# go through the patterns list programmatically and find the 
 
-# --- regex function START ---
-# Catch PII with regex
-# this fn is related to the confidence scoring
-# could be abandoned for a different approach
-def regex_pii_matcher(text):
-    phone_pattern = r"(?:\+49|0049|0)(?:\s?\d){7,15}"
-    email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
-
-    matches = []
-    for phone in re.finditer(phone_pattern, text):
-        matches.append((phone.start(), phone.end(), 'PHONE'))
-    for mail in re.finditer(email_pattern, text):
-        matches.append((mail.start(), mail.end(), 'EMAIL'))
-    return matches
-
-# --- regex function END ---
-
-# -------------------------------------------------------------------------------
-
-#----- UTILS ---------------------------------
+# ---- UTILITY FN ----
 # Remove all unnecessary whitespace and linebreaks from text
 clean_text = lambda t:  ' '.join(t.replace('\n', ' ').split())
-
 
 # KNIME instructions
 input_df = knio.input_tables[0].to_pandas()
 whole_content = []
 all_pii = []
-re_count = []
+all_text = []
 
 for path in input_df['Filepath']:
     if not str(path).lower().endswith('.pdf'):
@@ -152,44 +129,22 @@ for path in input_df['Filepath']:
     # 3. Get all the remaining unnecessary empty spaces
     full_content = re.sub(r' +', ' ', clean_content).strip()
 
-    # Feed the content to the language model
-    # --- Here the actual content is passed to spaCy ---
-    # spaCy extracts the matched entities
+    # Feed the content to spaCy (language model) to match entities
     content = nlp(full_content)
-
-    # Tier 1 PII identification
-    # Regex matching
-    regex_hits = regex_pii_matcher(full_content)
-
-    # Adding regex results to spaCy as Spans
-    # 1. Create a list of found entities
-    regex_ents = []
-    for start, end, label in regex_hits:
-        span = content.char_span(start, end, label=label, alignment_mode='contract')
-        if span is not None:
-            regex_ents.append(span)
-
-    # 2. Append regex hits to original entity list
-    content.ents = filter_spans(list(content.ents) + regex_ents)
     
-    # iterating over the regex_ents list shows all regex matches with
-    # their corresponding label
-    #for ent in regex_ents:
-    #    print(f"{ent.text} ({ent.label_})")
+    # List of found entity text and entity label 
+    list_text_and_label = [f"{clean_text(ent.text)} ({ent.label_})" for ent in content.ents if ent.label_ in ent_labels]
 
-    # Scan content for entities and add them to the pii list
-    scan_pii = [f"{clean_text(ent.text)} ({ent.label_})" for ent in content.ents if ent.label_ in ent_labels]
-
-    # list of pii string
-    list_pii =  [f"{clean_text(ent.text)}" for ent in content.ents if ent.label_ in ent_labels]
+    # list of found entity text 
+    list_text =  [f"{clean_text(ent.text)}" for ent in content.ents if ent.label_ in ent_labels]
         
     whole_content.append(full_content)
-    all_pii.append(", ".join(scan_pii))
-    re_count.append(len(regex_hits))
+    all_pii.append(", ".join(list_text_and_label))
+    all_text.append(", ".join(list_text))
 
 knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Filepath": input_df['Filepath'],
     "Content": whole_content,
-    "PII hits": all_pii,
-    "regex count": re_count
+    "Text and Label": all_pii,
+    "Text": all_text
     }))
