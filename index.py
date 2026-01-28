@@ -29,7 +29,7 @@ ruler.add_patterns(patterns)
 
 ent_labels = ["PER", "LOC", 'PHONE', 'EMAIL', 'SOCI', 'WEB']
 
-# --- layout analyzing function START ---
+# --- START --- layout analyzing function --- START ---
 # Detect page layout and parse content
 def analyze_layout_and_extract(page):
 
@@ -86,8 +86,19 @@ def analyze_layout_and_extract(page):
     
     return "\n".join(columns)
 
+# --- END --- layout analyzing function --- END ---
 
-# --- layout analyzing function END ---
+# --- START --- entity masking function --- START ---
+def mask_entities(doc):
+    # Sort entities by start character index (reverse)
+    ents = sorted(doc.ents, key=lambda e: e.start_char, reverse=True)
+    text = doc.text
+    for ent in ents:
+        if ent.label_ in ent_labels:
+            # Replace the exact character slice spaCy found
+            text = text[:ent.start_char] + f"[{ent.label_}]" + text[ent.end_char:]
+    return text
+# --- END --- entity masking function --- END ---
 
 #print("- Notation - ", patterns[0]['pattern'][0]['TEXT']['REGEX'])
 
@@ -100,6 +111,7 @@ input_df = knio.input_tables[0].to_pandas()
 whole_content = []
 all_pii = []
 all_text = []
+swissed = []
 
 # Loop over all provided filepaths in dir
 for path in input_df['Filepath']:
@@ -132,6 +144,9 @@ for path in input_df['Filepath']:
 
     # Feed the content to spaCy (language model) to match entities
     content = nlp(full_content)
+
+    # Create swissed version of content
+    swissed.append(mask_entities(content))
     
     # List of found entity text and entity label 
     list_text_and_label = [f"{clean_text(ent.text)} ({ent.label_})" for ent in content.ents if ent.label_ in ent_labels]
@@ -147,5 +162,6 @@ knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Filepath": input_df['Filepath'],
     "Content": whole_content,
     "Text and Label": all_pii,
-    "Text": all_text
+    "Text": all_text,
+    "To LLM": swissed
     }))
