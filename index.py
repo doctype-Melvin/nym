@@ -100,6 +100,18 @@ def mask_entities(doc):
     return text
 # --- END --- entity masking function --- END ---
 
+# --- START --- entity removing function --- START ---
+def remove_entities(doc):
+    # Sort entities by start character index (reverse)
+    ents = sorted(doc.ents, key=lambda e: e.start_char, reverse=True)
+    text = doc.text
+    for ent in ents:
+        if ent.label_ in ent_labels:
+            # Remove the exact character slice spaCy found
+            text = text[:ent.start_char] + "***" + text[ent.end_char:]
+    return text
+# --- END --- entity removing function --- END ---
+
 #print("- Notation - ", patterns[0]['pattern'][0]['TEXT']['REGEX'])
 
 # ---- UTILITY FN ----

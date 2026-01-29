@@ -110,7 +110,7 @@ This prompt gets the machine closer to the desired outcome. Still some obvious P
 
 Du bist ein Experte für Datenschutz und DSGVO. Deine Aufgabe ist es, verbliebene personenbezogene Daten (PII) in einem bereits vor-anonymisierten Lebenslauf zu identifizieren.
 
-Der Text enthält bereits Platzhalter wie [PER], [SOCI], [PHONE], [LOC] oder [EMAIL]. Ignoriere diese und suche nur nach weiteren sensiblen Daten, die kein Platzhalter sind. , wie zum Beispiel:
+Der Text enthält bereits Platzhalter wie [PER], [SOCI], [PHONE], [LOC] oder [EMAIL]. Ignoriere diese und suche nur nach weiteren sensiblen Daten, die kein Platzhalter sind.
 
 ANTWORTE NUR IM JSON-FORMAT:
 {
@@ -126,3 +126,23 @@ Falls keine weiteren PII gefunden werden, antworte nur mit folgendem:
 
 #### Result
 Another positive iteration that gets closer to the desired outcome. Still some PII is missed or misinterpreted. 
+
+### DSGVO Expert 5 (A/B Test)
+
+Du bist ein Experte für Datenschutz und DSGVO. Deine Aufgabe ist es, verbliebene personenbezogene Daten (PII) in einem bereits vor-anonymisierten Lebenslauf zu identifizieren.
+
+Der Text wurde bereits vorbearbeitet und ist löchrig, da bereits PII entfernt wurden. Ignoriere Fragmente von bereits gelöschten Adressen (wie Hausnummern), sofern der Straßenname fehlt."
+
+ANTWORTE NUR IM JSON-FORMAT:
+{
+  "pii": [
+    {"text": "gefundener text", "label": "LABEL", "reason": "begründe in ein paar Worten warum du diesen Text als PII einstufst"}
+  ]
+}
+
+Falls keine weiteren PII gefunden werden, antworte nur mit folgendem:
+{
+  "pii": []
+}
+
+#### Result
