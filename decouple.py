@@ -168,16 +168,16 @@ clean_text = lambda t:  ' '.join(t.replace('\n', ' ').split())
 # KNIME instructions
 input_df = knio.input_tables[0].to_pandas()
 whole_content = []
-all_pii = []
+tier1 = []
+tier2 = []
 all_text = []
 swissed = []
-tier1 = []
 
 # Loop over all provided filepaths in dir
 for path in input_df['Filepath']:
     if not str(path).lower().endswith('.pdf'):
         whole_content.append(f"SKIPPED: not a PDF {path}")
-        all_pii.append("SKIPPED: not a PDF")
+        tier2.append("SKIPPED: not a PDF")
         continue
     
     # Use pdfplumber to open pdf
@@ -202,31 +202,30 @@ for path in input_df['Filepath']:
     # 3. Get all the remaining unnecessary empty spaces
     full_content = re.sub(r' +', ' ', clean_content).strip()
 
-    # TIER 1 - Apply tier 1 detection
-    tier1.append(apply_tier1(full_content))
+    # TIER 1 - Apply tier 1 detection 
+    current_tier1_text = apply_tier1(full_content)
+    tier1.append(current_tier1_text) # value for output table
 
     # Feed the content to spaCy (language model) to match entities
-    content = nlp(full_content)
+    tier2 = nlp(current_tier1_text)
         
     # Create swissed version of content
-    swissed.append(mask_entities(content))
+    swissed.append(mask_entities(tier2))
 
     # List of found entity text and entity label
     # clean_text is a utility function and removes whitespace
-    list_text_and_label = [f"{clean_text(ent.text)} ({ent.label_})" for ent in content.ents if ent.label_ in ent_labels]
+    list_text_and_label = [f"{clean_text(ent.text)} ({ent.label_})" for ent in tier2.ents if ent.label_ in ent_labels]
 
     # list of found entity text 
-    list_text =  [f"{clean_text(ent.text)}" for ent in content.ents if ent.label_ in ent_labels]
+    list_text =  [f"{clean_text(ent.text)}" for ent in tier2.ents if ent.label_ in ent_labels]
         
     whole_content.append(full_content)
-    all_pii.append(", ".join(list_text_and_label))
-    all_text.append(", ".join(list_text))
+    tier2.append(", ".join(list_text_and_label))
+    #all_text.append(", ".join(list_text))
 
 knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Filepath": input_df['Filepath'],
     "Content": whole_content,
-    "Tier1": tier1
-    #"Text and Label": all_pii,
-    #"Text": all_text,
-    #"To LLM": swissed
+    "Tier1": tier1,
+    "Tier2": tier2
     }))
