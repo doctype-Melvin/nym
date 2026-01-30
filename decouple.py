@@ -170,6 +170,9 @@ for path in input_df['Filepath']:
     # 3. Get all the remaining unnecessary empty spaces
     full_content = re.sub(r' +', ' ', clean_content).strip()
 
+    # TIER 1 - Apply tier 1 detection
+    apply_tier1(full_content)
+
     # Feed the content to spaCy (language model) to match entities
     content = nlp(full_content)
         
