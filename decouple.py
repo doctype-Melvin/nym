@@ -2,6 +2,8 @@
 # and Tier 2 (spaCy) layers and replaces detected
 # PII with masking strings of the same length of PII
 
+MASKING_MODE = "LABEL"
+
 import knime.scripting.io as knio
 import pdfplumber
 import pandas as pd
@@ -109,20 +111,6 @@ def analyze_layout_and_extract(page):
 
 # --- END --- layout analyzing function --- END ---
 
-# --- START --- entity masking function --- START ---
-def mask_entities(doc):
-    # Sort entities by start character index (reverse)
-    ents = sorted(doc.ents, key=lambda e: e.start_char, reverse=True)
-    text = doc.text
-    for ent in ents:
-        if ent.label_ in ent_labels:
-            # Replace the exact character slice spaCy found
-            #text = text[:ent.start_char] + f"[{ent.label_}]" + text[ent.end_char:]
-            text = text[:ent.start_char] + f"[{ent.label_}]" + text[ent.end_char:]
-
-    return text
-# --- END --- entity masking function --- END ---
-
 # --- START --- TIER 1 masking layer --- START ---
 def apply_tier1(text):
     all_matches = []
@@ -155,11 +143,37 @@ def apply_tier1(text):
     result.sort( key=lambda m: m["start"], reverse=True)
 
     # mask matches in text
+    # actual redaction
     for m in result:
-        text = text[:m["start"]] + f'[{m["label"]}]' + text[m["end"]:]
+        if MASKING_MODE == "LABEL":
+            mask = f'[{m["label"]}]'
+        else: 
+            mask = '*' * m['length']
+        text = text[:m["start"]] + mask + text[m["end"]:]
         #print(text)
     return text
     
+# --- END --- Tier1 masking layer ---
+
+# --- START --- entity masking function --- START ---
+def mask_entities(doc):
+    # Sort entities by start character index (reverse)
+    ents = sorted(doc.ents, key=lambda e: e.start_char, reverse=True)
+    text = doc.text
+    for ent in ents:
+        if ent.label_ in ent_labels:
+            if MASKING_MODE == 'LABEL':
+                mask = f"[{ent.label_}]"
+            else: 
+                mask = '*' * len(ent.text)
+            # Replace the exact character slice spaCy found
+            #text = text[:ent.start_char] + f"[{ent.label_}]" + text[ent.end_char:]
+            text = text[:ent.start_char] + mask + text[ent.end_char:]
+
+    return text
+# --- END --- entity masking function --- END ---
+
+
 
 # ---- UTILITY FN ----
 # Remove all unnecessary whitespace and linebreaks from text
@@ -176,7 +190,7 @@ all_text = []
 # Loop over all provided filepaths in dir
 for path in input_df['Filepath']:
     if not str(path).lower().endswith('.pdf'):
-        whole_content.append(f"SKIPPED: not a PDF {path}")
+        whole_content.append(f"SKIPPED: not a PDF")
         tier2_exe.append("SKIPPED: not a PDF")
         continue
     
