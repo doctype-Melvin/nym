@@ -38,12 +38,12 @@ tier1_regex = [
         "pattern": r"(?:(?:\+?49[ \-\.\(\)]?)?(?:(?:\(?0\d{1,5}\)?)|(?:\d{1,5}))[ \-\.\(\)]?(?:\d[ \-\.\(\)]?){5,10}\d)"
     },
     {
-        "label": "SOCI",
-        "pattern": r"@[a-zA-Z0-9_]{2,30}(?=$| )"
-    },
-    {
         "label": "WEB",
         "pattern": r"\b(?<!mailto:)(?<!@)(?:https?:\/\/)?(?:www\.)?(?!\d)([a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?::\d+)?(?:\/[^\s<>\"'@]*|(?!\S))?\b(?![\w@./])"
+    },
+    {
+        "label": "SOCI",
+        "pattern": r"@[A-Za-z0-9](?:[A-Za-z0-9._-]{1,28}[A-Za-z0-9])?"
     }
 
 ]
@@ -125,10 +125,41 @@ def mask_entities(doc):
 
 # --- START --- TIER 1 masking layer --- START ---
 def apply_tier1(text):
-    matches = []
+    all_matches = []
+    # for each rule in list
     for rule in tier1_regex:
+        # find matches for the current pattern
         for match in re.finditer(rule["pattern"], text):
-            print(match)
+            # print(match.start(), match.end(), rule["label"])
+            all_matches.append({
+                "start": match.start(),
+                "end": match.end(), 
+                "label": rule["label"],
+                "length": match.end() - match.start()
+                })
+                
+    
+    # Sort ascending and rule to let the longest win
+    all_matches.sort( key=lambda m: (m["start"], -m["length"]))
+
+    # collision resolver greedy
+    result = []
+    last_end = -1
+
+    for m in all_matches:
+        if m["start"] >= last_end:
+            result.append(m)
+            last_end = m["end"]
+
+    # Sort reverse to prevent character offset while cutting
+    result.sort( key=lambda m: m["start"], reverse=True)
+
+    # mask matches in text
+    for m in result:
+        text = text[:m["start"]] + f'[{m["label"]}]' + text[m["end"]:]
+        #print(text)
+    return text
+    
 
 # ---- UTILITY FN ----
 # Remove all unnecessary whitespace and linebreaks from text
@@ -140,6 +171,7 @@ whole_content = []
 all_pii = []
 all_text = []
 swissed = []
+tier1 = []
 
 # Loop over all provided filepaths in dir
 for path in input_df['Filepath']:
@@ -171,7 +203,7 @@ for path in input_df['Filepath']:
     full_content = re.sub(r' +', ' ', clean_content).strip()
 
     # TIER 1 - Apply tier 1 detection
-    apply_tier1(full_content)
+    tier1.append(apply_tier1(full_content))
 
     # Feed the content to spaCy (language model) to match entities
     content = nlp(full_content)
@@ -193,7 +225,8 @@ for path in input_df['Filepath']:
 knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Filepath": input_df['Filepath'],
     "Content": whole_content,
-    "Text and Label": all_pii,
-    "Text": all_text,
-    "To LLM": swissed
+    "Tier1": tier1
+    #"Text and Label": all_pii,
+    #"Text": all_text,
+    #"To LLM": swissed
     }))
