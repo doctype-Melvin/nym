@@ -11,13 +11,7 @@ import re
 
 nlp = spacy.load("de_core_news_lg")
 
-# --- modify entity ruler ---
-# 1. Add EntityRuler before "ner" step
-# Add rules before the content is passed to spaCy
-if "entity_ruler" not in nlp.pipe_names:
-    ruler = nlp.add_pipe("entity_ruler", before="ner")
-
-# 2. Describe REGEX patterns
+# Describe REGEX patterns
 patterns = [
     {"label": "EMAIL",
     "pattern": [{"TEXT": {"REGEX": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"}}]},
@@ -33,9 +27,28 @@ patterns = [
     "pattern": [{"TEXT": {"REGEX": r"\b(?<!mailto:)(?<!@)(?:https?:\/\/)?(?:www\.)?(?!\d)([a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?::\d+)?(?:\/[^\s<>\"'@]*|(?!\S))?\b(?![\w@./])"}}]},
 ]
 
-ruler.add_patterns(patterns)
 
-ent_labels = ["PER", "LOC", 'PHONE', 'EMAIL', 'SOCI', 'WEB']
+tier1_regex = [
+    {
+        "label": "EMAIL",
+        "pattern": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
+    },
+    {
+        "label": "PHONE_DE",
+        "pattern": r"(?:(?:\+?49[ \-\.\(\)]?)?(?:(?:\(?0\d{1,5}\)?)|(?:\d{1,5}))[ \-\.\(\)]?(?:\d[ \-\.\(\)]?){5,10}\d)"
+    },
+    {
+        "label": "SOCI",
+        "pattern": r"@[a-zA-Z0-9_]{2,30}(?=$| )"
+    },
+    {
+        "label": "WEB",
+        "pattern": r"\b(?<!mailto:)(?<!@)(?:https?:\/\/)?(?:www\.)?(?!\d)([a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?::\d+)?(?:\/[^\s<>\"'@]*|(?!\S))?\b(?![\w@./])"
+    }
+
+]
+
+ent_labels = ["PER", "LOC", 'PHONE', 'EMAIL']
 
 # --- START --- layout analyzing function --- START ---
 # Detect page layout and parse content
@@ -110,6 +123,12 @@ def mask_entities(doc):
     return text
 # --- END --- entity masking function --- END ---
 
+# --- START --- TIER 1 masking layer --- START ---
+def apply_tier1(text):
+    matches = []
+    for rule in tier1_regex:
+        for match in re.finditer(rule["pattern"], text):
+            print(match)
 
 # ---- UTILITY FN ----
 # Remove all unnecessary whitespace and linebreaks from text
@@ -153,11 +172,12 @@ for path in input_df['Filepath']:
 
     # Feed the content to spaCy (language model) to match entities
     content = nlp(full_content)
-
+        
     # Create swissed version of content
     swissed.append(mask_entities(content))
-    
-    # List of found entity text and entity label 
+
+    # List of found entity text and entity label
+    # clean_text is a utility function and removes whitespace
     list_text_and_label = [f"{clean_text(ent.text)} ({ent.label_})" for ent in content.ents if ent.label_ in ent_labels]
 
     # list of found entity text 
