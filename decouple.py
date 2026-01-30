@@ -118,7 +118,7 @@ def mask_entities(doc):
         if ent.label_ in ent_labels:
             # Replace the exact character slice spaCy found
             #text = text[:ent.start_char] + f"[{ent.label_}]" + text[ent.end_char:]
-            text = text[:ent.start_char] + "***" + text[ent.end_char:]
+            text = text[:ent.start_char] + f"[{ent.label_}]" + text[ent.end_char:]
 
     return text
 # --- END --- entity masking function --- END ---
@@ -170,14 +170,14 @@ input_df = knio.input_tables[0].to_pandas()
 whole_content = []
 tier1 = []
 tier2 = []
+tier2_exe = []
 all_text = []
-swissed = []
 
 # Loop over all provided filepaths in dir
 for path in input_df['Filepath']:
     if not str(path).lower().endswith('.pdf'):
         whole_content.append(f"SKIPPED: not a PDF {path}")
-        tier2.append("SKIPPED: not a PDF")
+        tier2_exe.append("SKIPPED: not a PDF")
         continue
     
     # Use pdfplumber to open pdf
@@ -210,7 +210,7 @@ for path in input_df['Filepath']:
     tier2_cont = nlp(current_tier1_text)
         
     # Create swissed version of content
-    swissed.append(mask_entities(tier2_cont))
+    tier2.append(mask_entities(tier2_cont))
 
     # List of found entity text and entity label
     # clean_text is a utility function and removes whitespace
@@ -220,7 +220,7 @@ for path in input_df['Filepath']:
     list_text =  [f"{clean_text(ent.text)}" for ent in tier2_cont.ents if ent.label_ in ent_labels]
         
     whole_content.append(full_content)
-    tier2.append(", ".join(list_text_and_label))
+    tier2_exe.append(", ".join(list_text_and_label))
 
 knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Filepath": input_df['Filepath'],
