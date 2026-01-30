@@ -207,21 +207,20 @@ for path in input_df['Filepath']:
     tier1.append(current_tier1_text) # value for output table
 
     # Feed the content to spaCy (language model) to match entities
-    tier2 = nlp(current_tier1_text)
+    tier2_cont = nlp(current_tier1_text)
         
     # Create swissed version of content
-    swissed.append(mask_entities(tier2))
+    swissed.append(mask_entities(tier2_cont))
 
     # List of found entity text and entity label
     # clean_text is a utility function and removes whitespace
-    list_text_and_label = [f"{clean_text(ent.text)} ({ent.label_})" for ent in tier2.ents if ent.label_ in ent_labels]
+    list_text_and_label = [f"{clean_text(ent.text)} ({ent.label_})" for ent in tier2_cont.ents if ent.label_ in ent_labels]
 
     # list of found entity text 
-    list_text =  [f"{clean_text(ent.text)}" for ent in tier2.ents if ent.label_ in ent_labels]
+    list_text =  [f"{clean_text(ent.text)}" for ent in tier2_cont.ents if ent.label_ in ent_labels]
         
     whole_content.append(full_content)
     tier2.append(", ".join(list_text_and_label))
-    #all_text.append(", ".join(list_text))
 
 knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Filepath": input_df['Filepath'],
