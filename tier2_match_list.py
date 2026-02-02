@@ -6,6 +6,15 @@ import json
 
 nlp = spacy.load("de_core_news_lg")
 
+ruler = nlp.add_pipe("entity_ruler", before="ner")
+patterns = [
+    # Catches Dorfstraße, Dorfstr., Dorf str, etc.
+    {"label": "LOC", "pattern": [{"TEXT": {"REGEX": r"(?i).+(straße|str\.|weg|platz|allee|gasse|damm)$"}}]},
+    # Catches house numbers following the street
+    {"label": "LOC", "pattern": [{"TEXT": {"REGEX": r"(?i).+(straße|str\.|weg|platz)$"}}, {"IS_DIGIT": True}]}
+]
+ruler.add_patterns(patterns)
+
 ent_labels = ["PER", "LOC", 'PHONE', 'EMAIL']
 
 # Remove all unnecessary whitespace and linebreaks from text
