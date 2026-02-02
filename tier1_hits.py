@@ -1,3 +1,4 @@
+# PROD
 import knime.scripting.io as knio
 import pandas as pd
 import re
@@ -25,6 +26,14 @@ tier1_regex = [
     {
         "label": "LOC",
         "pattern": r"\b\d{5}\b"
+    },
+    {
+        "label": "DATE",
+        "pattern": r"\b\d{1,2}\.\d{1,2}\.(\d{4}|\d{2})\b"
+    },
+    {
+        "label": "DATE",
+        "pattern": r"(?i)^(Januar|Jan\.?|Februar|Feb\.?|März|Mär\.?|April|Apr\.?|Mai|Juni|Jun\.?|Juli|Jul\.?|August|Aug\.?|September|Sep\.?|Oktober|Okt\.?|November|Nov\.?|Dezember|Dez\.?)$"
     }
 ]
 
