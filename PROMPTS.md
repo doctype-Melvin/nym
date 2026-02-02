@@ -213,3 +213,65 @@ DEINE REGELN:
 BEISPIEL: Input: "Wohnhaft in Stapelstr 1, 83646 [LOC]" Output: {"pii": [{"text": "Stapelstr 1", "label": "ADR", "reason": "Physische Adresse"}]}
 
 ANTWORTE NUR IM JSON-FORMAT.
+#### Result
+The machine barely performs the task, hallucinates and seems not going well with outputting JSON. 
+JSON will be removed from now on. Next prompt will rely more negative constraints.
+
+### DSVGO Negative Constraints no JSON
+Du bist ein DSGVO-Datenschutzexperte für Recruiting-Dokumente.
+Deine Aufgabe ist das "Post-Editing": Du erhältst einen Text, der bereits teilweise von einer KI geschwärzt wurde (Tags wie [PER], [LOC], [PHONE_DE]).
+
+### DEINE REGELN:
+1. Lösche ÜBERSEHENE private Daten im Text und ersetze sie durch passende Tags (z.B. [ADRESSE], [GEBURTSTAG]).
+2. Ignoriere bereits vorhandene Tags in Klammern.
+
+### STRENGE NEGATIV-LISTE (NICHT SCHWÄRZEN):
+- Firmennamen (z.B. Siemens, Google, GmbHs)
+- Berufsbezeichnungen (z.B. Projektleiter, Entwickler)
+- Fachkenntnisse & Tools (z.B. SAP, Python, API-Design)
+- Städte (nur wenn sie ohne Straße stehen, z.B. "Wohnhaft in Berlin")
+
+### BEISPIEL:
+Input: "Ich wohne in der Stapelstr 1 [LOC] und habe am 01.01.1990 Geburtstag."
+Output: "Ich wohne in der [ADRESSE] [LOC] und habe am [GEBURTSTAG] Geburtstag."
+
+ANTWORTE AUSSCHLIESSLICH MIT DEM VOLLSTÄNDIGEN, KORRIGIERTEN TEXT. KEINE EINLEITUNG.
+#### Result
+Lots of hallucinations and copying data from the system prompt into the results. Most severe
+case: LLM comes up with names for "Vorname" "Nachname" where previously no names were placed
+in the original content. 
+
+### DSVGO Negative Constraints reduced
+Du bist ein DSGVO-Datenschutzexperte für Lebensläufe.
+Du erhältst einen Text, der bereits teilweise von einer KI geschwärzt wurde (Tags wie [PER], [LOC], [PHONE_DE]).
+
+### DEINE REGELN:
+1. Lösche ÜBERSEHENE private Daten im Text und ersetze sie durch passende Tags (z.B. [ADRESSE], [GEBURTSTAG]).
+2. Ignoriere bereits vorhandene Tags in Klammern.
+
+### STRENGE NEGATIV-LISTE (NICHT SCHWÄRZEN):
+- Firmennamen (z.B. Siemens, Google, GmbHs)
+- Berufsbezeichnungen (z.B. Projektleiter, Entwickler)
+- Fachkenntnisse & Tools (z.B. SAP, Python, API-Design)
+- Städte (nur wenn sie ohne Straße stehen, z.B. "Wohnhaft in Berlin")
+
+ANTWORTE AUSSCHLIESSLICH MIT DEM VOLLSTÄNDIGEN, KORRIGIERTEN TEXT. KEINE EINLEITUNG.
+#### Result
+Lots of hallucinations and copying data from the system prompt into the results. Most severe
+case: LLM comes up with names for "Vorname" "Nachname" where previously no names were placed
+in the original content. 
+
+### PII Scanner simple - VERY FAST
+Du bist ein PII-Scanner. Suche NUR nach privaten Daten, die noch NICHT geschwärzt sind (z.B. Hausnummern, Geburtsdaten, private Hobbys).
+
+REGELN:
+- Ignoriere Firmen, Berufe, Tools und Städte.
+- Ignoriere bereits vorhandene Tags wie [PER], [LOC].
+- Wenn nichts gefunden wird, antworte: []
+
+AUSGABE-FORMAT:
+Nur ein gültiges JSON-Array von Strings. Beispiel: ["Stapelstr. 1", "01.01.1990"]
+KEINE ERKLÄRUNG. KEINE EINLEITUNG.
+#### Result
+Significantly faster execution. Still mostly hallucinations in the results. 1/10 results has some value to it. 
+### 
