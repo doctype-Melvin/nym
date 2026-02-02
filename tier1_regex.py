@@ -1,25 +1,8 @@
-MASKING_MODE = "LABEL"
-
 import knime.scripting.io as knio
 import pandas as pd
 import re
 
 # Describe REGEX patterns
-patterns = [
-    {"label": "EMAIL",
-    "pattern": [{"TEXT": {"REGEX": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"}}]},
-    {"label": "PHON1",
-    "pattern": [{"TEXT": {"REGEX": r"(?:\+49|0049|0)(?:\s?\d{2,5})(?:\s?\d{4,10})"}}]},
-    {"label": "PHON2",
-    "pattern": [{"TEXT": {"REGEX": r"(?:\+49|0)[-/\s.]?\d{2,5}[-/\s.]?\d{4,10}"}}]},
-    {"label": "PHON3",
-    "pattern": [{"TEXT": {"REGEX": r"(?:\+49|0)\s?\(0\)\s?\d{2,5}\s?\d{4,10}"}}]},
-    {"label": "SOCI",
-    "pattern": [{"TEXT": {"REGEX": r"@[a-zA-Z0-9_]{2,30}(?=$| )"}}]},
-    {"label": "WEB",
-    "pattern": [{"TEXT": {"REGEX": r"\b(?<!mailto:)(?<!@)(?:https?:\/\/)?(?:www\.)?(?!\d)([a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?::\d+)?(?:\/[^\s<>\"'@]*|(?!\S))?\b(?![\w@./])"}}]},
-]
-
 
 tier1_regex = [
     {
@@ -38,7 +21,6 @@ tier1_regex = [
         "label": "SOCI",
         "pattern": r"@[A-Za-z0-9](?:[A-Za-z0-9._-]{1,28}[A-Za-z0-9])?"
     }
-
 ]
 
 ent_labels = ["PER", "LOC", 'PHONE', 'EMAIL']
@@ -77,12 +59,8 @@ def apply_tier1(text):
     # mask matches in text
     # actual redaction
     for m in result:
-        if MASKING_MODE == "LABEL":
-            mask = f'[{m["label"]}]'
-        else: 
-            mask = '*' * m['length']
+        mask = f'[{m["label"]}]'
         text = text[:m["start"]] + mask + text[m["end"]:]
-        #print(text)
     return text
     
 # --- END --- Tier1 masking layer ---
@@ -92,13 +70,14 @@ input_df = knio.input_tables[0].to_pandas()
 tier1 = []
 
 # Loop over all provided filepaths in dir
-for path in input_df['Filepath']:
-    current_content = input_df['Content']
+for content in input_df['Content']:
+    current_content = content
     
-    tier1.append(apply_tier1(current_content)) # value for output table
+    current_tier1_content = apply_tier1(current_content)
+    tier1.append(current_tier1_content) # value for output table
 
 knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Filepath": input_df['Filepath'],
-    "Content": current_content,
+    "Content": input_df['Content'],
     "Tier1": tier1,
     }))
