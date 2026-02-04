@@ -14,7 +14,7 @@ def analyze_layout_and_extract(page):
     height = page.height
     words = page.extract_words()
     if not words:
-        return ""
+        return {'content': "", 'confidence': 1.0}
     
     # Level 0: HEADER DETECTION 
     header_limit = height * 0.15
@@ -36,6 +36,12 @@ def analyze_layout_and_extract(page):
             best_x = x
             if intersections == 0: break # gap found
 
+    # Include confidence scoring for layout recognition
+    # based on found word intersections
+    total_word_count = len(main_words) if main_words else 1
+
+    layout_confidence = round(max(0, 1.0 - (min_intersections / ( total_word_count * 0.1 ))), 2)
+
     # Get the three sections header, sidebar, body
     header_text = page.crop((0, 0, width, header_limit)).extract_text() or ""
 
@@ -52,7 +58,10 @@ def analyze_layout_and_extract(page):
     sections = [header_text, sidebar_text, body_text]
     glued = [section.strip() for section in sections if section.strip()]
 
-    return "\n".join(glued)
+    return {
+        'content': "\n".join(glued),
+        'confidence': layout_confidence
+    }
 # --- END --- layout analyzing function --- END ---
 
 # ---- UTILITY FN ----
@@ -84,14 +93,27 @@ for path in input_df['Filepath']:
     try:
     # Use pdfplumber to open pdf
         full_resume_text = []
+        all_page_score = []
         with pdfplumber.open(path) as pdf:
             for page in pdf.pages:
-                page_text = analyze_layout_and_extract(page)
+                result = analyze_layout_and_extract(page)
+
+                if isinstance(result, dict):
+                    page_text = result.get('content', "")
+                    score_layout = result.get('confidence', 0.0)
+                else:
+                    # Fallback if somehow a string still gets through
+                    page_text = str(result)
+                    score_layout = 0.0
+                
                 full_resume_text.append(page_text)
-    
-   
+                all_page_score.append(score_layout)
+        
         # Glue the pages back together
         full_content = "\n".join(full_resume_text)
+
+        # calculate average layout confidence score
+        avg_confidence_score = sum(all_page_score) / len(all_page_score) if all_page_score else 0
 
         # --------- Remove all padding empty whitespace ---------------------------
         # 1. Replace all non-breaking spaces (\xa0) and tabs with standard spaces
