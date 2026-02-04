@@ -86,7 +86,8 @@ for path in input_df['Filepath']:
         output.append({
             'Filepath': path,
             'Content': f"SKIPPED: not a PDF {path}",
-            'status': 'skipped'
+            'status': 'skipped',
+            'layout_conf_score': 0
             })
         continue
     
@@ -135,11 +136,13 @@ for path in input_df['Filepath']:
         
         output.append({'Filepath': path,
                         'Content': full_content,
-                        'status': 'success'})
+                        'status': 'success',
+                        'layout_conf_score': avg_confidence_score})
     except Exception as e:
         output.append({'Filepath': path,
                         'Content':str(e),
-                        'status': 'failed'})
+                        'status': 'failed',
+                        'layout_conf_score': 1})
 
 output_df = pd.DataFrame(output)
 knio.output_tables[0] = knio.Table.from_pandas(output_df)
