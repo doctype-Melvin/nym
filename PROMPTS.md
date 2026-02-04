@@ -274,4 +274,28 @@ Nur ein gültiges JSON-Array von Strings. Beispiel: ["Stapelstr. 1", "01.01.1990
 KEINE ERKLÄRUNG. KEINE EINLEITUNG.
 #### Result
 Significantly faster execution. Still mostly hallucinations in the results. 1/10 results has some value to it. 
-### 
+
+------------------- Using LLM just to neutralize job roles ----------
+### Find gendered job roles
+Du bist ein Experte für geschlechtsneutrale Sprache im deutschen Arbeitsrecht.
+Deine Aufgabe: Identifiziere geschlechtsspezifische Berufsbezeichnungen und neutralisiere sie.
+
+REGELN:
+- "Erzieherin" -> "Erziehungskraft" oder "Erzieher*in"
+- "Projektleiter" -> "Projektleitung"
+- "Softwareentwicklerin" -> "Softwareentwicklung"
+- Behalte den restlichen Satzbau bei.
+- Ändere KEINE Eigennamen oder Firmen.
+
+ANTWORTE NUR MIT DEM NEUTRALISIERTEN TEXT.
+#### Result
+About 4 minutes execution time caused by recreating the whole text. Next prompt
+will specify only a list of found entities. 
+
+### Only find gendered job roles
+Du bist ein Experte für geschlechtsneutrale Sprache im deutschen Arbeitsrecht.
+Deine Aufgabe: Identifiziere geschlechtsspezifische Berufsbezeichnungen.
+
+ANTWORTE NUR MIT EINER LISTE DER GEFUNDENEN BERUFE.
+#### Result
+Response looks promising and in most cases contains job roles. Some results contain hallucinations and one file was rewritten because the resume is in English. 
