@@ -21,9 +21,9 @@ ent_labels = ["PER", "LOC", 'PHONE', 'EMAIL']
 clean_text = lambda t:  ' '.join(t.replace('\n', ' ').split())
 
 # --- START --- TIER 2 --- START ---
-def get_tier2(doc, filename):
+def get_tier2(doc):
     matches = []
-    new_logs = []
+    match_log = []
     # for each rule in list
     for ent in doc.ents:
         if ent.label_ in ent_labels:
@@ -34,54 +34,31 @@ def get_tier2(doc, filename):
                 "label": ent.label_,
                 "length": ent.end_char - ent.start_char
                 })
-            new_logs.append({
-                'File': filename,
-                'Node': 'Tier 2 spaCy DEU',
-                'Action': 'Redact',
-                'Detail': f'PII found: ({ent.label_})'
-                # entity confidence score
-                })
+            match_log.append(f'PII found: ({ent.label_})')
 
-    return matches, new_logs
+    return [matches, match_log]
 
 # --- END --- Tier1 masking layer ---
 
 # KNIME instructions
 input_df = knio.input_tables[0].to_pandas()
 
-tier2_out = []
+all_matches = []
 all_logs = []
-
-try: 
-    cumulative_log = knio.input_tables[1].to_pandas().to_dict('records')
-except:
-    cumulative_log = []
-
 # Loop over all provided filepaths in dir
-for content, filepath in zip(input_df['Content'], input_df['Filepath']):
+for index, row in input_df.iterrows():
     
-    #content = row['Content']
+    content = row['Content']
 
     doc = nlp(content)
 
-    matches, new_logs = get_tier2(doc, filepath)
+    matches = get_tier2(doc)
 
-    for log in new_logs:
-        cumulative_log.append({
-            'Timestamp': pd.Timestamp.now().strftime('%D.%m.%Y %H:%M:%S'),
-            'Filepath': filepath,
-            'Event_type': 'PII_Detection_T2',
-            'Description': log['Detail'],
-            'Confidence_Score': 0.75,
-            'Details': "NLP matching using spaCy library - model: de_core_news_lg"
-        })
-
-    tier2_out.append(json.dumps(matches))
+    all_matches.append(json.dumps(matches[0]))
+    all_logs.append(json.dumps(matches[1]))
 
 output_df = input_df.copy()
-output_df['Tier2_matches'] = tier2_out
-
-cumulative_log = pd.DataFrame(cumulative_log)
+output_df['Tier2_matches'] = all_matches
+output_df['Tier2_logs'] = all_logs
 
 knio.output_tables[0] = knio.Table.from_pandas(output_df)
-knio.output_tables[1] = knio.Table.from_pandas(cumulative_log)
