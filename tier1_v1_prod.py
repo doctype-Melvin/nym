@@ -63,7 +63,7 @@ def get_tier1(text, filename):
                 'File': filename,
                 'Node': 'Tier 1 Regex',
                 'Action': 'Redact',
-                'Detail': f'{rule['label']} found: {match}'
+                'Detail': f"{rule['label']} found: {match}"
             })
                 
     # Sort ascending and rule to let the longest win
@@ -86,10 +86,31 @@ def get_tier1(text, filename):
 input_df = knio.input_tables[0].to_pandas()
 tier1_out = []
 
+try: 
+    cumulative_log = knio.input_tables[1].to_pandas().to_dict('records')
+except:
+    cumulative_log = []
+
+tier1_results = []
+
 # Loop over all provided filepaths in dir
-for content in input_df['Content']:
-    tier1_matches = get_tier1(content)
-    tier1_out.append(json.dumps(tier1_matches))
+for content, filepath in zip(input_df['Content'], input_df['Filepath']):
+    
+    matches, new_logs = get_tier1(content, filepath)
+
+    tier1_results.append(json.dumps(matches))
+
+    for log in new_logs:
+        cumulative_log.append({
+            'Timestamp': pd.Timestamp.now().strftime('%D.%m.%Y %H:%M:%S'),
+            'Filepath': filepath,
+            'Event_type': 'PII_Detection_T1',
+            'Description': 'Regex Pattern Match',
+            'Confidence_Score': 1.0,
+            'Details': "Regex Pattern Match"
+        })
+    
+    tier1_out.append(json.dumps(matches))
 
 knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Filepath": input_df['Filepath'],
@@ -97,3 +118,4 @@ knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Tier1_matches": tier1_out,
     }))
 
+knio.output_tables[1] = knio.Table.from_pandas(pd.DataFrame(cumulative_log))

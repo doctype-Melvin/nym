@@ -1,4 +1,3 @@
-# PROD
 import knime.scripting.io as knio
 import pandas as pd
 import re
@@ -33,13 +32,22 @@ tier1_regex = [
     },
     {
         "label": "DATE",
-        "pattern": r"(?i)^(Januar|Jan\.?|Februar|Feb\.?|März|Mär\.?|April|Apr\.?|Mai|Juni|Jun\.?|Juli|Jul\.?|August|Aug\.?|September|Sep\.?|Oktober|Okt\.?|November|Nov\.?|Dezember|Dez\.?)$"
+        "pattern": r"(?i)\b\d{1,2}\.\s(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d{4}\b"
+    },
+    {
+        "label": "DATE",
+        "pattern": r"(?i)\b\d{2}\.\s(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d{4}\b"
+    },
+    {
+        "label": "DATE",
+        "pattern": r"(?i)\b\d{1,2}\.\s(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s'\d{2}\b"
     }
 ]
 
 # --- START --- TIER 1 --- START ---
-def get_tier1(text):
+def get_tier1(text, filename):
     all_matches = []
+    tier1_logs = []
     # for each rule in list
     for rule in tier1_regex:
         # find matches for the current pattern
@@ -51,6 +59,12 @@ def get_tier1(text):
                 "label": rule["label"],
                 "length": match.end() - match.start()
                 })
+            tier1_logs.append({
+                'File': filename,
+                'Node': 'Tier 1 Regex',
+                'Action': 'Redact',
+                'Detail': f'{rule['label']} found: {match}'
+            })
                 
     # Sort ascending and rule to let the longest win
     all_matches.sort( key=lambda m: (m["start"], -m["length"]))
@@ -64,7 +78,7 @@ def get_tier1(text):
             result.append(m)
             last_end = m["end"]
 
-    return result
+    return result, tier1_logs
     
 # --- END --- Tier1 masking layer ---
 

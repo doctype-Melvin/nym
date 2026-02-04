@@ -78,7 +78,9 @@ def to_titlecase(text):
 
 # KNIME instructions
 input_df = knio.input_tables[0].to_pandas()
-output = []
+output = [] # all the text content goes here
+audit_log = []
+
 
 # Loop over all provided filepaths in dir
 for path in input_df['Filepath']:
@@ -138,6 +140,14 @@ for path in input_df['Filepath']:
                         'Content': full_content,
                         'status': 'success',
                         'layout_conf_score': avg_confidence_score})
+        audit_log.append({
+            'Timestamp': pd.Timestamp.now().strftime('%D.%m.%Y %H:%M:%S'),
+            'Filepath': path,
+            'Event_type': 'Layout_Analysis',
+            'Description': 'Document layout segmented into Header/Sidebar/Body',
+            'Confidence_Score': avg_confidence_score,
+            'Details': f"Avg intersections: {sum(all_page_score)/len(all_page_score):.2f}"
+        })
     except Exception as e:
         output.append({'Filepath': path,
                         'Content':str(e),
@@ -146,3 +156,6 @@ for path in input_df['Filepath']:
 
 output_df = pd.DataFrame(output)
 knio.output_tables[0] = knio.Table.from_pandas(output_df)
+
+audit_df = pd.DataFrame(audit_log)
+knio.output_tables[1] = knio.Table.from_pandas(audit_df)
