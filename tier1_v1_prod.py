@@ -47,7 +47,7 @@ tier1_regex = [
 # --- START --- TIER 1 --- START ---
 def get_tier1(text, filename):
     all_matches = []
-    tier1_logs = []
+    new_logs = []
     # for each rule in list
     for rule in tier1_regex:
         # find matches for the current pattern
@@ -59,11 +59,13 @@ def get_tier1(text, filename):
                 "label": rule["label"],
                 "length": match.end() - match.start()
                 })
-            tier1_logs.append({
+            new_logs.append({
                 'File': filename,
                 'Node': 'Tier 1 Regex',
                 'Action': 'Redact',
-                'Detail': f"{rule['label']} found: {match}"
+                'Detail': f"found: {rule['label']}",
+                "start": match.start(),
+                "end": match.end(), 
             })
                 
     # Sort ascending and rule to let the longest win
@@ -78,7 +80,7 @@ def get_tier1(text, filename):
             result.append(m)
             last_end = m["end"]
 
-    return result, tier1_logs
+    return result, new_logs
     
 # --- END --- Tier1 masking layer ---
 
@@ -91,21 +93,23 @@ try:
 except:
     cumulative_log = []
 
-tier1_results = []
+#tier1_results = []
 
 # Loop over all provided filepaths in dir
 for content, filepath in zip(input_df['Content'], input_df['Filepath']):
     
     matches, new_logs = get_tier1(content, filepath)
 
-    tier1_results.append(json.dumps(matches))
+ #   tier1_results.append(json.dumps(matches))
 
     for log in new_logs:
         cumulative_log.append({
             'Timestamp': pd.Timestamp.now().strftime('%D.%m.%Y %H:%M:%S'),
             'Filepath': filepath,
             'Event_type': 'PII_Detection_T1',
-            'Description': 'Regex Pattern Match',
+            'Description': log['Detail'],
+            'Start': log['start'],
+            'End': log['end'],
             'Confidence_Score': 1.0,
             'Details': "Regex Pattern Match"
         })
