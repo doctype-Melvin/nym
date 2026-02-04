@@ -17,81 +17,42 @@ def analyze_layout_and_extract(page):
         return ""
     
     # Level 0: HEADER DETECTION 
-    # Horizontally scan the top 25 % of the page for a valley 
-    header_bottom = 0
-    top_limit = height * 0.25
+    header_limit = height * 0.15
+    main_words = [word for word in words if word['bottom'] > header_limit]
 
-    # Sniff out the gaps vertically (aling y-axis)
-    y_ranges = []
-    for word in [word for word in words if word['bottom'] <= top_limit]:
-        y_ranges.append((word['top'], word['bottom']))
+    # Level 1: Find the gutter
+    # search middle 60% to find any consistent gaps
+    search_start = int(width * 0.2)
+    search_end = int(width * 0.8)
 
-    # If there are words at the top, check for a gap below them
-    gap_size = 15
-    if y_ranges:
-        max_y = max(range[1] for range in y_ranges)
-        # look for words after a 15 px gap (gap_size)
-        lower_words = [word for word in words if word['top'] > max_y + gap_size]
-        if lower_words:
-            header_bottom = max_y + 5 # buffer
+    best_x = width * 0.3
+    min_intersections = float('inf')
 
-    # Level 1: VERTICAL DENSITY SCAN
-    # Scan area below header
-    main_content_words = [word for word in words if word['top'] >= header_bottom]
+    for x in range(search_start, search_end, 5): # scan every 5 px
+        intersections = sum(1 for word in main_words if word['x0'] < x < word['x1'])
 
-    # horizontal occupancy map
-    occupancy = [0] * int(width)
-    for word in main_content_words:
-        for x in range(int(word['x0']), int(word['x1'])):
-            if x < len(occupancy):
-                occupancy[x] += 1
+        if intersections <= min_intersections:
+            min_intersections = intersections
+            best_x = x
+            if intersections == 0: break # gap found
 
-    # find the widest vertical gutter
-    best_gutter = None
-    max_gutter_width = 0
-    current_gap_start = None
+    # Get the three sections header, sidebar, body
+    header_text = page.crop((0, 0, width, header_limit)).extract_text() or ""
 
-    # set the search area starting 10 % and 
-    # ending 90 % of page width
-    start_search = int(width * 0.1)
-    end_search = int(width * 0.1)
+    # Left and right are defined by best_x (the gutter)
+    left_side = page.crop((0, header_limit, best_x, height)).extract_text() or ""
+    right_side = page.crop((best_x, header_limit, width, height)).extract_text() or ""
 
-    for x in range(start_search, end_search):
-        if occupancy[x] == 0:
-            if current_gap_start is None:
-                current_gap_start = x
-        else:
-            if current_gap_start is not None:
-                gap_width = x - current_gap_start
-                if gap_width > max_gutter_width and gap_width >= gap_size:
-                    max_gutter_width = gap_width
-                    best_gutter = (current_gap_start, x)
-                current_gap_start = None
-
-    # --- FINAL ASSEMBLY ---
-    header_text = ""
-    sidebar_text = ""
-    body_text = ""
-
-    # 1. Extract Header
-    if header_bottom > 0:
-        header_text = page.crop((0, 0, width, header_bottom)).extract_text() or ""
-    
-    # 2. Extract Columns
-    if best_gutter:
-        gap_start, gap_end = best_gutter
-        left_crop = page.crop((0, header_bottom, gap_start, height)).extract_text() or ""
-        right_crop = page.crop((0, gap_end, header_bottom, width, height)).extract_text() or ""
-
-        if (gap_start) < (width - gap_end):
-            sidebar_text, body_text = left_crop, right_crop
-        else: 
-            body_text, sidebar_text = left_crop, right_crop
+    if len(left_side) < len(right_side):
+        sidebar_text, body_text = left_side, right_side
     else: 
-        body_text = page.crop((0, header_bottom, width, height)).extract_text() or ""
+        body_text, sidebar_text = left_side, right_side
 
+    # Put the sections together
     sections = [header_text, sidebar_text, body_text]
-    return "\n".join([section.strip() for section in sections if section.strip()])
+    glued = [section.strip() for section in sections if section.strip()]
+
+    return "\n".join(glued)
 # --- END --- layout analyzing function --- END ---
 
 # ---- UTILITY FN ----
