@@ -59,6 +59,14 @@ def analyze_layout_and_extract(page):
 # Remove all unnecessary whitespace and linebreaks from text
 clean_text = lambda t:  ' '.join(t.replace('\n', ' ').split())
 
+# Transform uppercase to titlecase
+def to_titlecase(text):
+    def replace_match(match):
+        word = match.group(0)
+        return word.title() if len(word) >= 4 else word
+
+    return re.sub(r'\b[A-ZÜÖÄß]{2,}\b', replace_match, text)
+
 # KNIME instructions
 input_df = knio.input_tables[0].to_pandas()
 output = []
@@ -66,35 +74,50 @@ output = []
 # Loop over all provided filepaths in dir
 for path in input_df['Filepath']:
     if not str(path).lower().endswith('.pdf'):
-        output.append(f"SKIPPED: not a PDF {path}")
+        output.append({
+            'Filepath': path,
+            'Content': f"SKIPPED: not a PDF {path}",
+            'status': 'skipped'
+            })
         continue
     
+    try:
     # Use pdfplumber to open pdf
-    full_resume_text = []
-    with pdfplumber.open(path) as pdf:
-        for page in pdf.pages:
-            page_text = analyze_layout_and_extract(page)
-            full_resume_text.append(page_text)
+        full_resume_text = []
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                page_text = analyze_layout_and_extract(page)
+                full_resume_text.append(page_text)
     
    
-    # Glue the pages back together
-    full_content = "\n".join(full_resume_text)
+        # Glue the pages back together
+        full_content = "\n".join(full_resume_text)
 
-    # --------- Remove all padding empty whitespace ---------------------------
-    # 1. Replace all non-breaking spaces (\xa0) and tabs with standard spaces
-    clean_content = re.sub(r'[\t\xa0]', ' ', full_content)
+        # --------- Remove all padding empty whitespace ---------------------------
+        # 1. Replace all non-breaking spaces (\xa0) and tabs with standard spaces
+        clean_content = re.sub(r'[\t\xa0]', ' ', full_content)
 
-    # 2. Line for line gets stripped and finally all empty lines are removed
-    lines = [line.strip() for line in clean_content.splitlines()]
-    clean_content = "\n".join([l for l in lines if l])
-    
-    # 3. Get all the remaining unnecessary empty spaces
-    full_content = re.sub(r' +', ' ', clean_content).strip()
-    
+        # 2. Line for line gets stripped and finally all empty lines are removed
+        #lines = [line.strip() for line in clean_content.splitlines()]
+        lines = []
+        for line in clean_content.splitlines():
+            stripped = line.strip()
+            if stripped:
+                processed_line = to_titlecase(stripped)
+                lines.append(processed_line)
+
+        clean_content = "\n".join(lines)
         
-    output.append(full_content)
+        # 3. Get all the remaining unnecessary empty spaces
+        full_content = re.sub(r' +', ' ', clean_content).strip()
+        
+        output.append({'Filepath': path,
+                        'Content': full_content,
+                        'status': 'success'})
+    except Exception as e:
+        output.append({'Filepath': path,
+                        'Content':str(e),
+                        'status': 'failed'})
 
-knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
-    "Filepath": input_df['Filepath'],
-    "Content": output,
-    }))
+output_df = pd.DataFrame(output)
+knio.output_tables[0] = knio.Table.from_pandas(output_df)
