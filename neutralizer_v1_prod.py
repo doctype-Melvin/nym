@@ -5,6 +5,12 @@ import re
 job_table = knio.input_tables[0].to_pandas()
 pre_redacted_table = knio.input_tables[1].to_pandas()
 
+try: 
+    cumulative_log = knio.input_tables[2].to_pandas().to_dict('records')
+except:
+    cumulative_log = []
+
+
 sort_idx = job_table['Original'].str.len().argsort()[::-1] # sort by integer position //[::-1] = descending 
 job_table = job_table.iloc[sort_idx].reset_index(drop=True) # iloc by integer position 
 
