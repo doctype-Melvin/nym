@@ -145,8 +145,8 @@ for path in input_df['Filepath']:
             'Filepath': path,
             'Event_type': 'Layout_Analysis',
             'Description': 'Document layout segmented into Header/Sidebar/Body',
-            'Start': -1,
-            'End': -1,
+            'Start': None,
+            'End': None,
             'Confidence_Score': avg_confidence_score,
             'Details': f"Avg intersections: {sum(all_page_score)/len(all_page_score):.2f}"
         })

@@ -32,8 +32,10 @@ def neutralizer(text, filepath):
                 events.append({ # logging
                     'Timestamp': pd.Timestamp.now().strftime('%d-%m-%Y %H:%M:%S'),
                     'Filepath': filepath,
-                    'Event_Type': 'Neutralization',
+                    'Event_type': 'Neutralization',
                     'Description': f"Pattern-based: '{match_text}' -> '{replacement}'",
+                    'Start': None,
+                    'End': None,
                     'Confidence_Score': 1.0,
                     'Details': label
                 })
@@ -46,8 +48,10 @@ def neutralizer(text, filepath):
             events.append({
                'Timestamp': pd.Timestamp.now().strftime('%d-%m-%Y %H:%M:%S'),
                 'Filepath': filepath,
-                'Event_Type': 'Neutralization',
+                'Event_type': 'Neutralization',
                 'Description': f"Dictionary: '{row['Original']}' -> '{row['Neutral']}'",
+                'Start': None,
+                'End': None,
                 'Confidence_Score': 1.0,
                 'Details': 'Manual Dictionary Match' 
             })
@@ -74,3 +78,5 @@ knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     'Redacted': redacted_table['Redacted'],
     'Output_final': redacted_table['Output_final'],
 }))
+
+knio.output_tables[1] = knio.Table.from_pandas(pd.DataFrame(cumulative_log))
