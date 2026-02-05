@@ -3,7 +3,7 @@ import pandas as pd
 import re
 
 job_table = knio.input_tables[0].to_pandas()
-pre_redacted_table = knio.input_tables[1].to_pandas()
+redacted_table = knio.input_tables[1].to_pandas()
 
 try: 
     cumulative_log = knio.input_tables[2].to_pandas().to_dict('records')
@@ -57,7 +57,7 @@ def neutralizer(text, filepath):
 
 neutralized_jobs = []
 
-for index, row in pre_redacted_table.iterrows():
+for index, row in redacted_table.iterrows():
     original_job = row['Redacted']
     filepath = row['Filepath']
 
@@ -66,6 +66,11 @@ for index, row in pre_redacted_table.iterrows():
     neutralized_jobs.append(neu_jobs)
     cumulative_log.extend(new_logs)
 
-pre_redacted_table["Output_final"] = neutralized_jobs 
+redacted_table["Output_final"] = neutralized_jobs 
 
-knio.output_tables[0] = knio.Table.from_pandas(pre_redacted_table)
+knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
+    'Filepath': redacted_table['Filepath'],
+    'Content': redacted_table['Content'],
+    'Redacted': redacted_table['Redacted'],
+    'Output_final': redacted_table['Output_final'],
+}))
