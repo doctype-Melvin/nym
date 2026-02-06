@@ -29,7 +29,7 @@ def get_tier2(doc, nlp, filename):
     beam_scores = get_beam_confidence(nlp, doc)
     # for each rule in list
     for ent in doc.ents:
-        if ent.label_ in ent_labels:
+        if ent.label_ in ent_labels or ent.label_.startswith("LOC_STR"):
 
             score_key = (ent.start, ent.end, ent.label_)
 

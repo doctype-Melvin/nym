@@ -10,13 +10,15 @@ try:
 except:
     cumulative_log = []
 
-
-sort_idx = job_table['Original'].str.len().argsort()[::-1] # sort by integer position //[::-1] = descending 
-job_table = job_table.iloc[sort_idx].reset_index(drop=True) # iloc by integer position 
+# Sort by length descending to prevent substring collisions
+job_table = job_table.iloc[job_table['Original'].str.len().argsort()[::-1]].reset_index(drop=True)
 
 def neutralizer(text, filepath):
     events = []
     current = str(text)
+    
+    # Standard Date Format to match Tier 1/2
+    ts_format = '%d.%m.%Y %H:%M:%S'
     
     kauf_patterns = [
         (r"\b(\w+)(kaufmann|kauffrau)\b", r"\1kaufleute", "Group Neutralization"),
@@ -29,54 +31,44 @@ def neutralizer(text, filepath):
         if found:
             for match in found:
                 match_text = "".join(match) if isinstance(match, tuple) else match
-                events.append({ # logging
-                    'Timestamp': pd.Timestamp.now().strftime('%d-%m-%Y %H:%M:%S'),
+                events.append({
+                    'Timestamp': pd.Timestamp.now().strftime(ts_format),
                     'Filepath': filepath,
                     'Event_type': 'Neutralization',
-                    'Description': f"Pattern-based: '{match_text}' -> '{replacement}'",
-                    'Start': None,
-                    'End': None,
-                    'Confidence_Score': 1.0,
-                    'Details': label
+                    'Description': f"Pattern: '{match_text}' -> '{replacement}'",
+                    'Start': 0, # Global context
+                    'End': len(current),
+                    'Confidence_Score': 1.0, # Rule-based
+                    'Details': f"Regex-Rule: {label}"
                 })
             current = re.sub(pattern, replacement, current, flags=re.IGNORECASE)
 
-    # iterate over each row of the "jobs.csv"
     for _, row in job_table.iterrows():
         target = rf'\b{re.escape(str(row["Original"]))}\b'
         if re.search(target, current, flags=re.IGNORECASE):
             events.append({
-               'Timestamp': pd.Timestamp.now().strftime('%d-%m-%Y %H:%M:%S'),
+                'Timestamp': pd.Timestamp.now().strftime(ts_format),
                 'Filepath': filepath,
                 'Event_type': 'Neutralization',
-                'Description': f"Dictionary: '{row['Original']}' -> '{row['Neutral']}'",
-                'Start': None,
-                'End': None,
+                'Description': f"Dict: '{row['Original']}' -> '{row['Neutral']}'",
+                'Start': 0,
+                'End': len(current),
                 'Confidence_Score': 1.0,
                 'Details': 'Manual Dictionary Match' 
             })
-        current = re.sub(target, row["Neutral"], current, flags=re.IGNORECASE)
+            current = re.sub(target, row["Neutral"], current, flags=re.IGNORECASE)
     
     return current, events
 
-neutralized_jobs = []
-
+# Main Processing
+neutralized_output = []
 for index, row in redacted_table.iterrows():
-    original_job = row['Redacted']
-    filepath = row['Filepath']
-
-    neu_jobs, new_logs = neutralizer(original_job, filepath)
-
-    neutralized_jobs.append(neu_jobs)
+    neu_text, new_logs = neutralizer(row['Redacted'], row['Filepath'])
+    neutralized_output.append(neu_text)
     cumulative_log.extend(new_logs)
 
-redacted_table["Output_final"] = neutralized_jobs 
+output_df = redacted_table.copy()
+output_df["Output_final"] = neutralized_output 
 
-knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
-    'Filepath': redacted_table['Filepath'],
-    'Content': redacted_table['Content'],
-    'Redacted': redacted_table['Redacted'],
-    'Output_final': redacted_table['Output_final'],
-}))
-
+knio.output_tables[0] = knio.Table.from_pandas(output_df)
 knio.output_tables[1] = knio.Table.from_pandas(pd.DataFrame(cumulative_log))

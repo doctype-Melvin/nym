@@ -63,7 +63,7 @@ def get_tier1(text, filename):
                 'File': filename,
                 'Node': 'Tier 1 Regex',
                 'Action': 'Redact',
-                'Detail': f"found: {rule['label']}",
+                'Detail': f"Regex match: {rule['label']}",
                 "start": match.start(),
                 "end": match.end(), 
             })
@@ -104,7 +104,7 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
 
     for log in new_logs:
         cumulative_log.append({
-            'Timestamp': pd.Timestamp.now().strftime('%D.%m.%Y %H:%M:%S'),
+            'Timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
             'Filepath': filepath,
             'Event_type': 'PII_Detection_T1',
             'Description': log['Detail'],

@@ -16,13 +16,13 @@ Processing ID: COMP-{hash(row['File']) % 10**8}
 - Processing Status: {row['Compliance_Grade']}
 
 2. REDACTION SUMMARY
-- Personal Identifiers Removed: {row['PII_Removed']}
+- Personal Identifiers Removed: {row['PII_Redacted']}
 - Gender-Neutral Adjustments: {row['Titles_Neutralized']}
 
 3. LEGAL DECLARATION
 This document has been processed by Complyable.
 PII has been masked using Tier 1 (Regex) and 
-Tier 2 (NLP) protocols to ensure compliance with 
+Tier 2 (NLP) protocols to ensura compliance with 
 the EU AI Act and GDPR.
 ==========================================================
 """
