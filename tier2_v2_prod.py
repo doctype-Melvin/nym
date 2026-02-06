@@ -3,6 +3,7 @@ import pandas as pd
 import spacy
 import re
 import json
+from collections import defaultdict
 
 nlp = spacy.load("de_core_news_lg")
 
@@ -40,6 +41,21 @@ def get_tier2(doc):
     return [matches, match_log]
 
 # --- END --- Tier1 masking layer ---
+
+# --- START --- BEAM SEARCH --- START ---
+def get_beam_confidence(nlp, doc, beam_width=16): # beam_width = 16 explores 16 variations of a sentence
+    ner = nlp.get_pipe("ner")
+
+    beams = ner.beam_parse([doc], beam_width=beam_width)
+    entity_scores = defaultdict(float)
+
+    for beam in beams:
+        for score, ents in ner.moves.get_beam_parses(beam):
+            for start, end, label in ents:
+                entity_scores[(start, end, label)] += score
+    
+    return entity_scores
+# --- END --- BEAM SEARCH --- END ---
 
 # KNIME instructions
 input_df = knio.input_tables[0].to_pandas()
