@@ -59,8 +59,7 @@ def get_tier2(doc, nlp, filename):
         
 
     return all_matches, new_logs
-
-# --- END --- Tier2 --- END ---
+# --- END --- Tier2 --- END ----
 
 # --- START - BEAM SEARCH CONF - START ---
 def get_beam_confidence(nlp, doc, beam_width=16, beam_density=0.0001):

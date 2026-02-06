@@ -10,18 +10,29 @@ def summarize_compliance(df):
         file_events = df[df['Filepath'] == filepath]
 
         layout_score = file_events[file_events['Event_type'] == 'Layout_Analysis']['Confidence_Score'].mean()
+        if pd.isna(layout_score): layout_score = 1.0
+
+        t2_pii_events = file_events[file_events['Event_type'] == "PII_Detection_T2"]
+        if not t2_pii_events.empty:
+            n_min = t2_pii_events['Confidence_Score'].min()
+        else:
+            n_min = 1.0
+
+        trust_score = (min(layout_score, n_min) * 0.8) + (n_min * 0.2)
+
+        status = "PASS" if trust_score > 0.83 else "REVIEW_REQUIRED"
+
         pii_count = len(file_events[file_events['Event_type'].isin(['PII_Detection_T1', 'PII_Detection_T2'])])
         neutral_count = len(file_events[file_events['Event_type'] == 'Neutralization'])
-
-        final_trust = round(layout_score, 2)
 
         summary.append({
             'File': filepath.split('\\')[-1],
             'Layout_Quality': f"{layout_score * 100:.0f}%",
             'PII_Removed': pii_count,
             'Titles_Neutralized': neutral_count,
-            'Compliance_Grade': "PASS" if final_trust > 0.7 else "REVIEW_REQUIRED",
-            'Trust_Score': final_trust
+            'T2_Min_Confidence': f"{n_min*100:.1f}%",
+            'Compliance_Grade': status,
+            'Trust_Score': trust_score
         })
 
     return pd.DataFrame(summary)
