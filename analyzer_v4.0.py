@@ -3,7 +3,7 @@ import pdfplumber
 import pandas as pd
 import re
 
-# --- START --- layout analyzing function --- START ---
+# --- START --- Layout Analyzer --- 
 def layout_analyzer(page):
     width = page.width
     height = page.height
@@ -13,6 +13,7 @@ def layout_analyzer(page):
         return {'content': "", 'confidence': 1.0, 'strategy': 'Empty_page', 'jumps': 0}
     
     # --- 0. Chaos detection (non-typical layouts) ---
+    # contains a pre-check decision tree to call corresponding worker functions
     total_jumps = 0
     last_y = 0
     for word in words:
@@ -33,7 +34,6 @@ def layout_analyzer(page):
         content = reconstruct_with_lines(words)
         conf = 0.65
 
-    # Decision logic
     elif len(left_half) > (len(words) * 0.15) and len(right_half) > (len(words)*0.15):
         strategy = "Sidebar_detected"
         content = extract_as_sidebar(words, width, height)
@@ -55,15 +55,22 @@ def extract_as_single_column(words):
     return reconstruct_with_lines(words)
 
 def extract_as_sidebar(words, width, height):
-    mid_words = sorted([word['x0'] for word in words if width * 0.2 < word['x0'] < width * 0.8])
+    mid_points = sorted([word['x0'] for word in words if width * 0.1 < word['x0'] < width * 0.9])
 
-    if len(mid_words) < 2:
+    if len(mid_points) < 2:
         return reconstruct_with_lines(words) # Fallback to single col
     
-    gaps = [(mid_words[i+1] - mid_words[i], (mid_words[i+1] + mid_words[i]) / 2)
-            for i in range(len(mid_words)-1)]
+    # Get largest gap between word and starts
+    gaps = []
+    for i in range(len(mid_points) -1 ):
+        gap_size = mid_points[i+1] - mid_points[i]
+        center = (mid_points[i+1] + mid_points[i]) / 2
+        gaps.append((gap_size, center))
     
     max_gap, split_x = max(gaps, key=lambda x: x[0])
+
+    if max_gap < 10:
+        return reconstruct_with_lines(words)
 
     # Word split 
     left_words = [word for word in words if word['x0'] < split_x]
@@ -119,9 +126,9 @@ audit_log = []
 
 for path in input_df['Filepath']:
     if not str(path).lower().endswith('.pdf'):
+        output.append({'Filepath': path, 'Content': "SKIPPED", 'status': 'skipped', 'layout_conf_score': 0})
         continue
     
-    # Initialize variables outside the try block
     current_full_content = ""
     avg_score = 0
     final_strategies = "N/A"
