@@ -13,9 +13,8 @@ def analyze_layout_and_extract(page):
         return {'content': "", 'confidence': 1.0, 'jumps': 0, 'noise': 0}
 
     # --- 1. COORDINATE SORTING ---
-    # Sort words: primarily by 'top' (Y), secondarily by 'x0' (X)
-    # We use a tolerance of 3px for 'top' to keep words on the same line together
-    words.sort(key=lambda w: (round(w['top'] / 3) * 3, w['x0']))
+    # Sort primarily by 'top' (Y) then 'x0' (X)
+    words.sort(key=lambda w: (w['top'], w['x0']))
 
     # --- 2. NOISE & JUMP AUDIT ---
     total_jumps = 0
@@ -32,29 +31,32 @@ def analyze_layout_and_extract(page):
 
     # --- 3. SPATIAL SEGMENTATION ---
     header_limit = height * 0.15
-    # Filter words into buckets based on their sorted physical location
-    header_words = [w['text'] for w in words if w['bottom'] <= header_limit]
+    h_words = [w for w in words if w['bottom'] <= header_limit]
     
-    # Simple Gutter/Sidebar logic using physical X-coordinate
-    best_x = width * 0.3 # Default gutter
-    body_words = [w['text'] for w in words if w['bottom'] > header_limit and w['x0'] >= best_x]
-    sidebar_words = [w['text'] for w in words if w['bottom'] > header_limit and w['x0'] < best_x]
+    best_x = width * 0.3
+    b_words = [w for w in words if w['bottom'] > header_limit and w['x0'] >= best_x]
+    s_words = [w for w in words if w['bottom'] > header_limit and w['x0'] < best_x]
 
-    # Reconstruct strings from sorted word lists
-    header_text = " ".join(header_words)
-    sidebar_text = " ".join(sidebar_words)
-    body_text = " ".join(body_words)
+    # Reconstruct with preserved line breaks
+    header_text = reconstruct_with_lines(h_words)
+    sidebar_text = reconstruct_with_lines(s_words)
+    body_text = reconstruct_with_lines(b_words)
 
     # --- 4. SCORING ---
-    # Since we are forcing order, 'jumps' now represent original file chaos
     jump_penalty = (total_jumps / (len(words) * 0.1)) if len(words) > 0 else 0
-    layout_confidence = round(max(0, 1.0 - jump_penalty - (noise_count * 0.1)), 2)
+    noise_penalty = (noise_count * 0.1)
+
+    complexity_penalty = 0
+    if len(s_words) > 5 and len(b_words) > 5:
+        complexity_penalty = 0.05 # accounts for multi-column layouts
+
+    layout_confidence = round(max(0, 1.0 - jump_penalty - noise_penalty - complexity_penalty), 2)
 
     sections = [header_text, sidebar_text, body_text]
     glued = [section.strip() for section in sections if section.strip()]
 
     return {
-        'content': "\n".join(glued),
+        'content': "\n\n".join(glued), # Double newline to separate segments
         'confidence': layout_confidence,
         'jumps': total_jumps,
         'noise': noise_count
@@ -62,6 +64,31 @@ def analyze_layout_and_extract(page):
 
 # ---- UTILITY FN ----
 clean_text = lambda t: ' '.join(t.replace('\n', ' ').split())
+
+# --- 3. VERTICAL BINNING HELPER ---
+def reconstruct_with_lines(word_list):
+    if not word_list: return ""
+    # Sort words by top again just to be safe
+    word_list.sort(key=lambda w: (w['top'], w['x0']))
+    
+    lines = []
+    if not word_list: return ""
+    
+    current_line = [word_list[0]['text']]
+    last_top = word_list[0]['top']
+    
+    for i in range(1, len(word_list)):
+        w = word_list[i]
+        # If the word is within 4 pixels of the previous word's top, it's the same line
+        if abs(w['top'] - last_top) < 4:
+            current_line.append(w['text'])
+        else:
+            lines.append(" ".join(current_line))
+            current_line = [w['text']]
+            last_top = w['top']
+    
+    lines.append(" ".join(current_line)) # Add the last line
+    return "\n".join(lines)
 
 def to_titlecase(text):
     def replace_match(match):
