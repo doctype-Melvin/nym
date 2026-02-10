@@ -12,11 +12,11 @@ def summarize_compliance(df):
 
         # 1. ANALYZER METRIC (Tier 0)
         layout_score = file_events[file_events['Event_type'] == 'Layout_Analysis']['Confidence_Score'].mean()
-        if pd.isna(layout_score): layout_score = 1.0
+        if pd.isna(layout_score): layout_score = 1
 
         # 2. AI NER METRIC (Tier 2)
         t2_events = file_events[file_events['Event_type'] == "PII_Detection_T2"]
-        n_min = t2_events['Confidence_Score'].min() if not t2_events.empty else 1.0
+        t2_min = t2_events['Confidence_Score'].min() if not t2_events.empty else 1.0
 
         # 3. NEUTRALIZATION METRIC (Tier 3)
         # Even though current scores are 1.0, we include this for SLM-readiness
@@ -25,14 +25,14 @@ def summarize_compliance(df):
 
         # 4. PESSIMISTIC MATH (The "Weakest Link" Logic)
         # We find the absolute lowest confidence across all AI/Layout steps
-        weakest_link = min(layout_score, n_min, t3_min)
+        weakest_link = min(layout_score, t2_min, t3_min)
         
         # Weighted formula: Heavily penalize the weakest link
-        trust_score = (weakest_link * 0.8) + (n_min * 0.2)
+        trust_score = (weakest_link * 0.8) + (t2_min * 0.2)
 
         # 5. DYNAMIC COMPLIANCE STATUS
         # threshold 0.83 as per your previous requirement
-        status = "PASS" if trust_score > 0.83 else "REVIEW_REQUIRED"
+        status = "PASS" if trust_score > 0.85 else "REVIEW_REQUIRED"
 
         # 6. PRODUCTIVITY COUNTS
         pii_count = len(file_events[file_events['Event_type'].isin(['PII_Detection_T1', 'PII_Detection_T2'])])
@@ -46,7 +46,7 @@ def summarize_compliance(df):
             'PII_Redacted': pii_count,
             'Titles_Neutralized': neutral_count,
             'Layout_Quality': f"{layout_score * 100:.0f}%",
-            'AI_Certainty': f"{n_min * 100:.1f}%",
+            'AI_Certainty': f"{t2_min * 100:.1f}%",
             'Trust_Score': round(trust_score, 4),
             'Compliance_Grade': status
         })

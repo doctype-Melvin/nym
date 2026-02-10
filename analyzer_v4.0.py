@@ -8,6 +8,7 @@ def layout_analyzer(page):
     width = page.width
     height = page.height
     words = page.extract_words()
+    word_count = len(words)
     
     if not words:
         return {'content': "", 'confidence': 1.0, 'strategy': 'Empty_page', 'jumps': 0}
@@ -21,6 +22,8 @@ def layout_analyzer(page):
             total_jumps += 1
         last_y = word['top']
     
+    jumps_words_ratio = (jumps_count/word_count if word_count > 0 else 0) # Jumps to words ratio
+
     # --- 1. Classification ---
     x_starts = [word['x0'] for word in words] # look for clustering
 
@@ -29,19 +32,21 @@ def layout_analyzer(page):
     right_half = [x for x in x_starts if x > width * 0.5]
 
     # Decision logic
+    #strategy, jump_ratio, max_gap, page_width
     if total_jumps > (len(words) * 0.1): #more than 10% are out of order (chaotic)
         strategy = "Creative_layout_detected"
         content = reconstruct_with_lines(words)
-        conf = 0.65
+        conf = layout_confidence_score(strategy, jumps_words_ratio, width)
 
     elif len(left_half) > (len(words) * 0.15) and len(right_half) > (len(words)*0.15):
+        doc_data = extract_as_sidebar(words, width, height)
+        content = doc_data['content']
         strategy = "Sidebar_detected"
-        content = extract_as_sidebar(words, width, height)
-        conf = 0.9
+        conf = layout_confidence_score(strategy, jumps_words_ratio, width, doc_data['max_gap'])
     else: 
         strategy = "Single_column"
         content = extract_as_single_column(words)
-        conf = 0.97
+        conf = layout_confidence_score(strategy, jumps_words_ratio, width)
     
     return {
         'content': content,
@@ -54,6 +59,7 @@ def extract_as_single_column(words):
     if not words: return ""
     return reconstruct_with_lines(words)
 
+# Modification for v4.1 includes returning dict
 def extract_as_sidebar(words, width, height):
     mid_points = sorted([word['x0'] for word in words if width * 0.1 < word['x0'] < width * 0.9])
 
@@ -81,14 +87,13 @@ def extract_as_sidebar(words, width, height):
     right_text = reconstruct_with_lines(right_words)
 
     if len(left_words) < len(right_words):
-        return f"-- Sidebar --\n{left_text}\n\n-- Main --\n{right_text}"
+        return {'content': f"-- Sidebar --\n{left_text}\n\n-- Main --\n{right_text}", 'max_gap': max_gap}
     else: 
-        return f"-- Main --\n{left_text}\n\n-- Sidebar --\n{right_text}"
+        return {'content': f"-- Main --\n{left_text}\n\n-- Sidebar --\n{right_text}", 'max_gap': max_gap}
 
 # ---- UTILITY FN ----
 clean_text = lambda t: ' '.join(t.replace('\n', ' ').split())
 
-# --- 3. VERTICAL BINNING HELPER ---
 def reconstruct_with_lines(word_list):
     if not word_list: return ""
     # Sort words by top again just to be safe
@@ -114,10 +119,28 @@ def reconstruct_with_lines(word_list):
     return "\n".join(lines)
 
 def to_titlecase(text):
+
     def replace_match(match):
         word = match.group(0)
         return word.title() if len(word) >= 4 else word
     return re.sub(r'\b[A-ZÜÖÄß]{2,}\b', replace_match, text)
+
+# v4.1 Dynamic confidence score calculation
+def layout_confidence_score(strategy, jump_ratio, page_width, max_gap=0):
+    result = 1
+
+    result -= min(0.4, jump_ratio*2.5)
+
+    if strategy == 'Sidebar_detected':
+        ideal_gutter = page_width * 0.1
+        if max_gap < ideal_gutter:
+            gutter_penalty = (1.0 - (max_gap / ideal_gutter)) * 0.2
+            result -= gutter_penalty
+
+    elif strategy == 'Creative_layout_detected':
+        result -= 0.3
+
+    return round(max(0.1, result), 2)
 
 # KNIME instructions
 input_df = knio.input_tables[0].to_pandas()
