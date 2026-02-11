@@ -72,7 +72,7 @@ for index, row in input_df.iterrows():
     pre_redacted.append(masked_text)
 
 output_df = input_df.copy()
-output_df['Redacted_Content'] = pre_redacted # Unified name for next node
+output_df['Redacted'] = pre_redacted # Unified name for next node
 
 knio.output_tables[0] = knio.Table.from_pandas(output_df)
 knio.output_tables[1] = knio.Table.from_pandas(pd.DataFrame(cumulative_log))
