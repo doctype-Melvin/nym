@@ -97,7 +97,10 @@ except:
 
 # Loop over all provided filepaths in dir
 for content, filepath in zip(input_df['Content'], input_df['Filepath']):
-    
+    if not isinstance(content, string) or content == 'SKIPPED':
+        tier1_out.append(json.dumps([]))
+        continue
+
     matches, new_logs = get_tier1(content, filepath)
 
  #   tier1_results.append(json.dumps(matches))
