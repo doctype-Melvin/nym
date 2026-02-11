@@ -18,11 +18,11 @@ def layout_analyzer(page):
     total_jumps = 0
     last_y = 0
     for word in words:
-        if word['top'] < (last_y - 15): # jump to next word is more than 15px
+        if word['top'] < (last_y - 9): # jump to next word is more than 15px
             total_jumps += 1
         last_y = word['top']
     
-    jumps_words_ratio = (jumps_count/word_count if word_count > 0 else 0) # Jumps to words ratio
+    jumps_words_ratio = (total_jumps/word_count if word_count > 0 else 0) # Jumps to words ratio
 
     # --- 1. Classification ---
     x_starts = [word['x0'] for word in words] # look for clustering
@@ -33,7 +33,7 @@ def layout_analyzer(page):
 
     # Decision logic
     #strategy, jump_ratio, max_gap, page_width
-    if total_jumps > (len(words) * 0.1): #more than 10% are out of order (chaotic)
+    if total_jumps > (len(words) * 0.08):
         strategy = "Creative_layout_detected"
         content = reconstruct_with_lines(words)
         conf = layout_confidence_score(strategy, jumps_words_ratio, width)
@@ -64,7 +64,7 @@ def extract_as_sidebar(words, width, height):
     mid_points = sorted([word['x0'] for word in words if width * 0.1 < word['x0'] < width * 0.9])
 
     if len(mid_points) < 2:
-        return reconstruct_with_lines(words) # Fallback to single col
+        return {'content': reconstruct_with_lines(words), 'max_gap': 0} # Fallback to single col
     
     # Get largest gap between word and starts
     gaps = []
@@ -76,7 +76,7 @@ def extract_as_sidebar(words, width, height):
     max_gap, split_x = max(gaps, key=lambda x: x[0])
 
     if max_gap < 10:
-        return reconstruct_with_lines(words)
+         return {'content': reconstruct_with_lines(words), 'max_gap': 0}
 
     # Word split 
     left_words = [word for word in words if word['x0'] < split_x]
@@ -123,22 +123,22 @@ def to_titlecase(text):
     def replace_match(match):
         word = match.group(0)
         return word.title() if len(word) >= 4 else word
-    return re.sub(r'\b[A-ZÜÖÄß]{2,}\b', replace_match, text)
+    return re.sub(r'\b[A-ZÜÖÄß]{3,}\b', replace_match, text)
 
 # v4.1 Dynamic confidence score calculation
 def layout_confidence_score(strategy, jump_ratio, page_width, max_gap=0):
     result = 1
 
-    result -= min(0.4, jump_ratio*2.5)
+    result -= min(0.4, jump_ratio*8)
 
     if strategy == 'Sidebar_detected':
         ideal_gutter = page_width * 0.1
         if max_gap < ideal_gutter:
-            gutter_penalty = (1.0 - (max_gap / ideal_gutter)) * 0.2
+            gutter_penalty = (1.0 - (max_gap / ideal_gutter)) * 0.3
             result -= gutter_penalty
 
     elif strategy == 'Creative_layout_detected':
-        result -= 0.3
+        result -= 0.4
 
     return round(max(0.1, result), 2)
 
@@ -169,12 +169,15 @@ for path in input_df['Filepath']:
                 page_contents.append(res['content'])
                 page_scores.append(res['confidence'])
                 page_strategies.append(res['strategy'])
+                strategy_trace = [f"P{i+1}: {strat}" for i, strat in enumerate(page_strategies)]
+                strategies_out = " | ".join(strategy_trace)
                 total_jumps += res.get('jumps', 0)
         
         # Aggregate data
         raw_content = "\n\n".join(page_contents)
         avg_score = sum(page_scores) / len(page_scores) if page_scores else 0
-        final_strategies = ", ".join(list(set(page_strategies)))
+        #final_strategies = ", ".join(list(set(page_strategies)))
+        final_strategies = strategies_out
         jumps_count = total_jumps
 
         # Post-processing (TitleCase and Cleanup)
@@ -194,7 +197,7 @@ for path in input_df['Filepath']:
         })
 
     except Exception as e:
-        # This will now show you the ACTUAL Python error (e.g., NameError, TypeError)
+        # This will now show the ACTUAL Python error (e.g., NameError, TypeError)
         import traceback
         error_msg = f"Error: {str(e)} | Trace: {traceback.format_exc()[:100]}"
         output.append({
