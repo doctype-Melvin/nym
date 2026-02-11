@@ -87,9 +87,9 @@ def extract_as_sidebar(words, width, height):
     right_text = reconstruct_with_lines(right_words)
 
     if len(left_words) < len(right_words):
-        return {'content': f"-- Sidebar --\n{left_text}\n\n-- Main --\n{right_text}", 'max_gap': max_gap}
+        return {'content': f"-- Sidebar --\n{left_text}\n\n-- Body --\n{right_text}", 'max_gap': max_gap}
     else: 
-        return {'content': f"-- Main --\n{left_text}\n\n-- Sidebar --\n{right_text}", 'max_gap': max_gap}
+        return {'content': f"-- Body --\n{left_text}\n\n-- Sidebar --\n{right_text}", 'max_gap': max_gap}
 
 # ---- UTILITY FN ----
 clean_text = lambda t: ' '.join(t.replace('\n', ' ').split())
