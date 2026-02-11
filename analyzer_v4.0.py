@@ -212,7 +212,7 @@ for path in input_df['Filepath']:
         'Timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
         'Filepath': path,
         'Event_type': 'Layout_Analysis',
-        'Description': f"Strategies: {final_strategies}",
+        'Description': f"Layouts: {final_strategies}",
         'Confidence_Score': avg_score,
         'Details': f"Total Jumps: {jumps_count}"
     })
