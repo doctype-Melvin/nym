@@ -18,9 +18,6 @@ ruler.add_patterns(patterns)
 
 ent_labels = ["PER", "LOC", 'PHONE', 'EMAIL']
 
-# Remove all unnecessary whitespace and linebreaks from text
-clean_text = lambda t:  ' '.join(t.replace('\n', ' ').split())
-
 # --- START --- TIER 2 --- START ---
 def get_tier2(doc, nlp, filename):
     all_matches = []
