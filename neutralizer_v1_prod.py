@@ -21,7 +21,7 @@ def neutralizer(text, filepath):
     ts_format = '%d.%m.%Y %H:%M:%S'
     
     kauf_patterns = [
-        (r"\b(\w+)(kaufmann|kauffrau)\b", r"\1kaufleute", "Group Neutralization"),
+        (r"\b(\w+)(kaufmann|kauffrau)\b", r"\1fachkraft", "Group Neutralization"),
         (r"\b(Kaufmann|Kauffrau)\s+für\b", "Fachkraft für", "Title Neutralization"),
         (r"\b(Kaufmann|Kauffrau)\s\b", "Fachkraft ", "Title Neutralization")
     ]
@@ -38,7 +38,7 @@ def neutralizer(text, filepath):
                     'Description': f"Pattern: '{match_text}' -> '{replacement}'",
                     'Start': 0, # Global context
                     'End': len(current),
-                    'Confidence_Score': 1.0, # Rule-based
+                    'Confidence_Score': 1, # Rule-based
                     'Details': f"Regex-Rule: {label}"
                 })
             current = re.sub(pattern, replacement, current, flags=re.IGNORECASE)
@@ -53,10 +53,21 @@ def neutralizer(text, filepath):
                 'Description': f"Dict: '{row['Original']}' -> '{row['Neutral']}'",
                 'Start': 0,
                 'End': len(current),
-                'Confidence_Score': 1.0,
+                'Confidence_Score': 0.9, # Matches entry in (incomplete) lookup
                 'Details': 'Manual Dictionary Match' 
             })
             current = re.sub(target, row["Neutral"], current, flags=re.IGNORECASE)
+        if not events: # handle no-matching
+            events.append({
+                'Timestamp': pd.Timestamp.now().strftime(ts_format),
+                'Filepath': filepath,
+                'Event_type': 'Neutralization',
+                'Description': 'No gender-specific phrases detected.',
+                'Start': 0,
+                'End': 0,
+                'Confidence_Score': 0.85, # 100% sure nothing matched based on (incomplete) lookup
+                'Details': 'Process complete: No changes required'
+            })
     
     return current, events
 
