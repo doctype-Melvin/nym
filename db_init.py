@@ -51,6 +51,11 @@ def initialize_vault():
             )
         ''')
 
+        # Indexing for best performance
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_filepath ON audit_trail (filepath)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_event ON audit_trail (event_code)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_summary_session ON session_summary (session_uuid)')
+
         conn.commit()
         conn.close()
         return "Success", f"Vault initialized at {db_path}"
