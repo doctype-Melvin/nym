@@ -1,53 +1,72 @@
 import sqlite3
 import pandas as pd
 import knime.scripting.io as knio
+import uuid
+from datetime import datetime
 
-db_path = "complyable_vault_db"
+# Define the DB Path
+db_path = "complyable_vault.db"
 
 def initialize_vault():
-    connect = sqlite3.connect(db_path)
-    cursor = connect.cursor()
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
 
-    # Audit Trail Table (What/Who/Where)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS audit_tail (
-                   id INTEGER PRIMARY KEY AUTOINCREMENT,
-                   timestamp TXT,
-                   filepath TEXT,
-                   event_code TEXT,
-                   event_type TEXT,
-                   description TEXT,
-                   confidence_score REAL,
-                   details TEXT 
-                )
-            ''')
-    
-    # Job Dictionary Table (Neutralizer source)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS job_dict (
-                   original TEXT PRIMARY KEY,
-                   neutral TEXT,
-                   category TEXT,
-                   last_updated TEXT
-                   )
-    ''')
+        # Audit Trail (Hardened with UUID and Integrity Hash field)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS audit_trail (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_uuid TEXT UNIQUE,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                filepath TEXT,
+                event_code TEXT,
+                event_type TEXT,
+                description TEXT,
+                confidence_score REAL,
+                details TEXT,
+                integrity_hash TEXT 
+            )
+        ''')
+        
+        # Job Dictionary (Source of Truth)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS job_dict (
+                original TEXT PRIMARY KEY,
+                neutral TEXT,
+                category TEXT,
+                last_updated DATETIME
+            )
+        ''')
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS session_summary (
-                   session_id TEXT,
-                   file_name TEXT,
-                   pii_count INTEGER,
-                   neutral_count INTEGER,
-                   trust_score REAL,
-                   compliancegrade TEXT,
-                   processed_at TEXT
-                   )
-    ''')
+        # Session Summary (Certificate Data)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS session_summary (
+                session_uuid TEXT PRIMARY KEY,
+                file_name TEXT,
+                pii_count INTEGER,
+                neutral_count INTEGER,
+                trust_score REAL,
+                compliance_grade TEXT,
+                processed_at DATETIME
+            )
+        ''')
 
-    connect.commit()
-    connect.close()
+        conn.commit()
+        conn.close()
+        return "Success", f"Vault initialized at {db_path}"
+    except Exception as e:
+        return "Error", str(e)
 
-initialize_vault()
+# Execute
+status, message = initialize_vault()
 
-output_status = pd.DataFrame([{"db_status": "Initialized", "path": db_path}])
-knio.output_tables[0] = knio.Table.from_pandas(output_status)
+# 3. Create Output Table for KNIME
+# This provides visual confirmation in the KNIME GUI that the node executed
+output_df = pd.DataFrame([{
+    "Status": status,
+    "Message": message,
+    "Session_Run_ID": str(uuid.uuid4()), # Generates a fresh ID for this specific run
+    "Initialization_Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+}])
+
+knio.output_tables[0] = knio.Table.from_pandas(output_df)
