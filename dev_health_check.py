@@ -4,26 +4,20 @@ import knime.scripting.io as knio
 
 db_path = "complyable_vault.db"
 
-def health_check():
-    connect = sqlite3.connect(db_path)
-
-    dict_check = pd.read_sql_query("SELECT * FROM job_dict LIMIT 5", connect)
-
-    audit_check = pd.read_sql_query('''
-            SELECT
-                s.file_name,
-                s.compliance_grade,
-                a.event_type,
-                a.description
-                a.integrity_hash
-            FROM session_summary s
-            JOIN audit_trail a ON s.file_name = a.filepath
-            ORDER BY s.processed_at DESC
-            LIMIT 10
-        ''', connect)
+def run_health_check():
+    conn = sqlite3.connect(db_path)
     
-    connect.close()
-    return dict_check, audit_check
+    # Check if the tables actually have rows
+    audit_count = pd.read_sql_query("SELECT COUNT(*) as count FROM audit_trail", conn).iloc[0]['count']
+    summary_count = pd.read_sql_query("SELECT COUNT(*) as count FROM session_summary", conn).iloc[0]['count']
+    
+    # Pull the raw data without joining to see exactly what was saved
+    audit_data = pd.read_sql_query("SELECT filepath, event_type, integrity_hash FROM audit_trail LIMIT 5", conn)
+    
+    conn.close()
+    return audit_data, audit_count, summary_count
 
-dict_df, audit_df = health_check()
-knio.output_tables[0] = knio.Table.from_pandas(audit_df)
+df, a_count, s_count = run_health_check()
+# Output the audit data to the KNIME table
+knio.output_tables[0] = knio.Table.from_pandas(df)
+print(f"Health Check: {a_count} audit rows and {s_count} summary rows found.")
