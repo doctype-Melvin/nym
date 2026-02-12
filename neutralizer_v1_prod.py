@@ -12,7 +12,7 @@ connect.close()
 redacted_table = knio.input_tables[0].to_pandas()
 
 try: 
-    cumulative_log = knio.input_tables[2].to_pandas().to_dict('records')
+    cumulative_log = knio.input_tables[1].to_pandas().to_dict('records')
 except:
     cumulative_log = []
 
@@ -64,17 +64,17 @@ def neutralizer(text, filepath):
             })
             current = re.sub(target, row["neutral"], current, flags=re.IGNORECASE)
         
-        if not events: # handle no-matching
-            events.append({
-                'Timestamp': pd.Timestamp.now().strftime(ts_format),
-                'Filepath': filepath,
-                'Event_type': 'Neutralization',
-                'Description': 'No gender-specific phrases detected.',
-                'Start': 0,
-                'End': 0,
-                'Confidence_Score': 0.85, # 100% sure nothing matched based on (incomplete) lookup
-                'Details': 'Process complete: No changes required'
-            })
+    if not events: # handle no-matching
+        events.append({
+            'Timestamp': pd.Timestamp.now().strftime(ts_format),
+            'Filepath': filepath,
+            'Event_type': 'Neutralization',
+            'Description': 'No gender-specific phrases detected.',
+            'Start': 0,
+            'End': 0,
+            'Confidence_Score': 0.85, # 100% sure nothing matched based on (incomplete) lookup
+            'Details': 'Process complete: No changes required'
+        })
     
     return current, events
 
