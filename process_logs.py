@@ -32,12 +32,12 @@ def archive_audit_trail(df):
                        details,
                        integrity_hash
                        )
-                       VALUES (?, ?, ?, ?, ?, ?, ?)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                        ''', (
                            rec_uuid,
                            row['Filepath'],
                            row.get('Event_Code', 'GEN-01'),
-                           row['Event_tyle'],
+                           row['Event_type'],
                            row['Description'],
                            float(row['Confidence_Score']),
                            row['Details'],
@@ -51,4 +51,4 @@ def archive_audit_trail(df):
 
 total_saved = archive_audit_trail(log_df)
 
-knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({"Records_Archived": total_saved}))
+knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame([{"Records_Archived": total_saved}]))
