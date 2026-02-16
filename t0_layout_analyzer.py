@@ -147,9 +147,12 @@ input_df = knio.input_tables[0].to_pandas()
 output = []
 audit_log = []
 
-for path in input_df['Filepath']:
+for index, row in input_df.iterrows():
+    path = row['Filepath']
+    markdown_content = row['Markdown']
+
     if not str(path).lower().endswith('.pdf'):
-        output.append({'Filepath': path, 'Content': "SKIPPED", 'status': 'skipped', 'layout_conf_score': 0})
+        output.append({'Filepath': path, 'Content': "SKIPPED", 'status': 'skipped', 'layout_conf_score': 0, 'Text': 'Failed - unsupported format'})
         continue
     
     current_full_content = ""
@@ -191,18 +194,18 @@ for path in input_df['Filepath']:
         
         output.append({
             'Filepath': path,
-            'Content': current_full_content,
+            'Content': markdown_content,
+            'Text': current_full_content,
             'status': 'success',
             'layout_conf_score': avg_score
         })
 
     except Exception as e:
-        # This will now show the ACTUAL Python error (e.g., NameError, TypeError)
         import traceback
         error_msg = f"Error: {str(e)} | Trace: {traceback.format_exc()[:100]}"
         output.append({
             'Filepath': path, 
-            'Content': error_msg, 
+            'Content': markdown_content, 
             'status': 'failed', 
             'layout_conf_score': 0
         })
