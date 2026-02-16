@@ -4,7 +4,7 @@ import pandas as pd
 from pydantic import BaseModel
 
 app = FastAPI(title = 'ComplyAPI')
-DB_PATH = "complyable_vault.db"
+DB_PATH = "/Users/webdev/Documents/Complyable/Complyable Iso/complyable_vault.db"
 
 class ApprovalRequest(BaseModel):
     filepath: str
@@ -14,7 +14,7 @@ class ApprovalRequest(BaseModel):
 @app.get("/pending")
 def get_pending():
     connect = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query("SELECT * FROM pending_review WHERE status = 'PENDING", connect)
+    df = pd.read_sql_query("SELECT * FROM pending_review WHERE status = 'PENDING'", connect)
     connect.close()
     return df.to_dict(orient='records')
 

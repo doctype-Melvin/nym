@@ -185,28 +185,11 @@ for index, row in input_df.iterrows():
         final_strategies = strategies_out
         jumps_count = total_jumps
 
-        # Post-processing (TitleCase and Cleanup)
-        clean_content = re.sub(r'[\t\xa0]', ' ', raw_content)
-        processed_lines = []
-        for line in clean_content.splitlines():
-            if line.strip():
-                processed_lines.append(to_titlecase(line.strip()))
-        
-        # ------- CHANGED HERE -------------
-        processed_markdown = []
-        for line in markdown_content.splitlines():
-            if line.strip():
-                processed_markdown.append(to_titlecase(line.strip()))
-        
-        current_full_content = "\n".join(processed_lines)
-        current_full_markdown = "\n".join(processed_markdown)
-
-        clean_markdown = to_titlecase(re.sub(r'[\t\xa0]', ' ', markdown_content))
+        clean_markdown = (re.sub(r'[\t\xa0]', ' ', markdown_content))
         clean_text = to_titlecase(re.sub('[\t\xa0]', ' ', raw_content))
         
         output.append({
             'Filepath': path,
-            #'Content': current_full_markdown,
             'Content': clean_markdown,
             'Text': clean_text,
             'status': 'success',

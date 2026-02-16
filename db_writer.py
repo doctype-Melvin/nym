@@ -19,4 +19,4 @@ for _, row in data.iterrows():
                    """, (row['Filepath'], row['Content'], row['Text'], row['layout_conf_score'], 'PENDING', i_hash))
     
 connect.commit()
-connect.close()
+connect.close() 

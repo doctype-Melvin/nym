@@ -4,12 +4,11 @@ from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.base_models import InputFormat
 from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 
-format_options = {
-    InputFormat.PDF: PdfFormatOption(backend=PyPdfiumDocumentBackend),
-    InputFormat.DOCX: PdfFormatOption(backend=None)
-}
+pipeline_options = {
+    InputFormat.PDF: PdfFormatOption(backend=PyPdfiumDocumentBackend)
+    }
 
-converter = DocumentConverter()
+converter = DocumentConverter(format_options=pipeline_options)
 
 def play_docling(path):
     try:
@@ -22,7 +21,7 @@ def play_docling(path):
         return f"ERROR: {str(e)}"
 
 input_table = knio.input_tables[0].to_pandas()
-input_table['Structured_text'] = input_table['Filepath'].apply(play_docling)
+input_table['Markdown'] = input_table['Filepath'].apply(play_docling)
 
 
 
