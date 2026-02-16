@@ -5,7 +5,8 @@ from docling.datamodel.base_models import InputFormat
 from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
 
 format_options = {
-    InputFormat.PDF: PdfFormatOption(backend=PyPdfiumDocumentBackend)
+    InputFormat.PDF: PdfFormatOption(backend=PyPdfiumDocumentBackend),
+    InputFormat.DOCX: PdfFormatOption(backend=None)
 }
 
 converter = DocumentConverter()
@@ -30,3 +31,7 @@ knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Content": input_table["Content"],
     "Markdown": input_table["Markdown"]
 }))
+
+import gc
+del converter
+gc.collect()
