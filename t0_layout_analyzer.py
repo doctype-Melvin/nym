@@ -149,6 +149,7 @@ audit_log = []
 
 for index, row in input_df.iterrows():
     path = row['Filepath']
+    content = row['Content']
     markdown_content = row['Markdown']
 
     if not str(path).lower().endswith('.pdf'):
@@ -156,6 +157,7 @@ for index, row in input_df.iterrows():
         continue
     
     current_full_content = ""
+    current_full_markdown = ""
     avg_score = 0
     final_strategies = "N/A"
     jumps_count = 0
@@ -190,12 +192,23 @@ for index, row in input_df.iterrows():
             if line.strip():
                 processed_lines.append(to_titlecase(line.strip()))
         
+        # ------- CHANGED HERE -------------
+        processed_markdown = []
+        for line in markdown_content.splitlines():
+            if line.strip():
+                processed_markdown.append(to_titlecase(line.strip()))
+        
         current_full_content = "\n".join(processed_lines)
+        current_full_markdown = "\n".join(processed_markdown)
+
+        clean_markdown = to_titlecase(re.sub(r'[\t\xa0]', ' ', markdown_content))
+        clean_text = to_titlecase(re.sub('[\t\xa0]', ' ', raw_content))
         
         output.append({
             'Filepath': path,
-            'Content': markdown_content,
-            'Text': current_full_content,
+            #'Content': current_full_markdown,
+            'Content': clean_markdown,
+            'Text': clean_text,
             'status': 'success',
             'layout_conf_score': avg_score
         })
@@ -205,7 +218,8 @@ for index, row in input_df.iterrows():
         error_msg = f"Error: {str(e)} | Trace: {traceback.format_exc()[:100]}"
         output.append({
             'Filepath': path, 
-            'Content': markdown_content, 
+            'Content': markdown_content,
+            'Text': content,
             'status': 'failed', 
             'layout_conf_score': 0
         })
