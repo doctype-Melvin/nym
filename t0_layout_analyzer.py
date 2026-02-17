@@ -2,220 +2,85 @@ import knime.scripting.io as knio
 import pdfplumber
 import pandas as pd
 import re
+import datetime
 
 # --- START --- Layout Analyzer --- 
-def layout_analyzer(page):
-    width = page.width
-    height = page.height
+def play_analyzer(page):
+    """
+    Smoke tests for layout complexity.
+    Returns a score between 0.0 (Simple) and 1.0 (Chaotic).
+    """
     words = page.extract_words()
-    word_count = len(words)
+    if not words: return 0.0, 0
     
-    if not words:
-        return {'content': "", 'confidence': 1.0, 'strategy': 'Empty_page', 'jumps': 0}
-    
-    # --- 0. Chaos detection (non-typical layouts) ---
-    # contains a pre-check decision tree to call corresponding worker functions
-    total_jumps = 0
-    last_y = 0
-    for word in words:
-        if word['top'] < (last_y - 9): # jump to next word is more than 15px
-            total_jumps += 1
-        last_y = word['top']
-    
-    jumps_words_ratio = (total_jumps/word_count if word_count > 0 else 0) # Jumps to words ratio
+    # 1. Fragment Density: High word count in small boxes = complex layout
+    # (Typical Canva/Designer PDFs where every line is its own object)
+    fragmentation = len(words) / 100 
 
-    # --- 1. Classification ---
-    x_starts = [word['x0'] for word in words] # look for clustering
+    # 2. Vertical Entropy: How many different left-margin start points?
+    # Standard docs have ~5-10. Chaos docs have 40+.
+    x_starts = [round(w['x0']) for w in words]
+    unique_starts = len(set(x_starts))
+    entropy = unique_starts / 40 
 
-    # Split page in half to determin density
-    left_half = [x for x in x_starts if x < width * 0.5]
-    right_half = [x for x in x_starts if x > width * 0.5]
+    # 3. Collision Risk: Very basic check for overlapping X-ranges
+    # Just average the fragmentation and entropy for a reliable heuristic
+    risk_score = round(min(1.0, max(0.0, (fragmentation + entropy) / 2)), 2)
+    return risk_score, len(words)
 
-    # Decision logic
-    #strategy, jump_ratio, max_gap, page_width
-    if total_jumps > (len(words) * 0.08):
-        strategy = "Creative_layout_detected"
-        content = reconstruct_with_lines(words)
-        conf = layout_confidence_score(strategy, jumps_words_ratio, width)
 
-    elif len(left_half) > (len(words) * 0.15) and len(right_half) > (len(words)*0.15):
-        doc_data = extract_as_sidebar(words, width, height)
-        content = doc_data['content']
-        strategy = "Sidebar_detected"
-        conf = layout_confidence_score(strategy, jumps_words_ratio, width, doc_data['max_gap'])
-    else: 
-        strategy = "Single_column"
-        content = extract_as_single_column(words)
-        conf = layout_confidence_score(strategy, jumps_words_ratio, width)
-    
-    return {
-        'content': content,
-        'confidence': conf,
-        'strategy': strategy,
-        'jumps': total_jumps
-    }
-
-def extract_as_single_column(words):
-    if not words: return ""
-    return reconstruct_with_lines(words)
-
-# Modification for v4.1 includes returning dict
-def extract_as_sidebar(words, width, height):
-    mid_points = sorted([word['x0'] for word in words if width * 0.1 < word['x0'] < width * 0.9])
-
-    if len(mid_points) < 2:
-        return {'content': reconstruct_with_lines(words), 'max_gap': 0} # Fallback to single col
-    
-    # Get largest gap between word and starts
-    gaps = []
-    for i in range(len(mid_points) -1 ):
-        gap_size = mid_points[i+1] - mid_points[i]
-        center = (mid_points[i+1] + mid_points[i]) / 2
-        gaps.append((gap_size, center))
-    
-    max_gap, split_x = max(gaps, key=lambda x: x[0])
-
-    if max_gap < 10:
-         return {'content': reconstruct_with_lines(words), 'max_gap': 0}
-
-    # Word split 
-    left_words = [word for word in words if word['x0'] < split_x]
-    right_words = [word for word in words if word['x0'] >= split_x]
-
-    # Reconstruction
-    left_text = reconstruct_with_lines(left_words)
-    right_text = reconstruct_with_lines(right_words)
-
-    if len(left_words) < len(right_words):
-        return {'content': f"-- Sidebar --\n{left_text}\n\n-- Body --\n{right_text}", 'max_gap': max_gap}
-    else: 
-        return {'content': f"-- Body --\n{left_text}\n\n-- Sidebar --\n{right_text}", 'max_gap': max_gap}
-
-# ---- UTILITY FN ----
-clean_text = lambda t: ' '.join(t.replace('\n', ' ').split())
-
-def reconstruct_with_lines(word_list):
-    if not word_list: return ""
-    # Sort words by top again just to be safe
-    word_list.sort(key=lambda w: (w['top'], w['x0']))
-    
-    lines = []
-    if not word_list: return ""
-    
-    current_line = [word_list[0]['text']]
-    last_top = word_list[0]['top']
-    
-    for i in range(1, len(word_list)):
-        w = word_list[i]
-        # If the word is within 4 pixels of the previous word's top, it's the same line
-        if abs(w['top'] - last_top) < 4:
-            current_line.append(w['text'])
-        else:
-            lines.append(" ".join(current_line))
-            current_line = [w['text']]
-            last_top = w['top']
-    
-    lines.append(" ".join(current_line)) # Add the last line
-    return "\n".join(lines)
-
-def to_titlecase(text):
-
-    def replace_match(match):
-        word = match.group(0)
-        return word.title() if len(word) >= 4 else word
-    return re.sub(r'\b[A-ZÜÖÄß]{3,}\b', replace_match, text)
-
-# v4.1 Dynamic confidence score calculation
-def layout_confidence_score(strategy, jump_ratio, page_width, max_gap=0):
-    result = 1
-
-    result -= min(0.4, jump_ratio*8)
-
-    if strategy == 'Sidebar_detected':
-        ideal_gutter = page_width * 0.1
-        if max_gap < ideal_gutter:
-            gutter_penalty = (1.0 - (max_gap / ideal_gutter)) * 0.3
-            result -= gutter_penalty
-
-    elif strategy == 'Creative_layout_detected':
-        result -= 0.4
-
-    return round(max(0.1, result), 2)
-
-# KNIME instructions
 input_df = knio.input_tables[0].to_pandas()
 output = []
 audit_log = []
 
-for index, row in input_df.iterrows():
+for _, row in input_df.iterrows():
     path = row['Filepath']
-    content = row['Content']
-    markdown_content = row['Markdown']
 
     if not str(path).lower().endswith('.pdf'):
-        output.append({'Filepath': path, 'Content': "SKIPPED", 'status': 'skipped', 'layout_conf_score': 0, 'Text': 'Failed - unsupported format'})
-        continue
+
+        output.append({
+            'filepath': path,
+            'layout_score': 0.0,
+            'status': 'skipped'
+            })
+        continue 
     
-    current_full_content = ""
-    current_full_markdown = ""
-    avg_score = 0
-    final_strategies = "N/A"
-    jumps_count = 0
+    work_start = datetime.datetime.now()
+    risk_score = 0.5
+    word_count = 0
+    status = 'success'
     
     try:
-        page_contents = []
-        page_scores = []
-        page_strategies = []
-        total_jumps = 0
-        
         with pdfplumber.open(path) as pdf:
+            page_scores = []
             for page in pdf.pages:
-                res = layout_analyzer(page)
-                page_contents.append(res['content'])
-                page_scores.append(res['confidence'])
-                page_strategies.append(res['strategy'])
-                strategy_trace = [f"P{i+1}: {strat}" for i, strat in enumerate(page_strategies)]
-                strategies_out = " | ".join(strategy_trace)
-                total_jumps += res.get('jumps', 0)
-        
-        # Aggregate data
-        raw_content = "\n\n".join(page_contents)
-        avg_score = sum(page_scores) / len(page_scores) if page_scores else 0
-        #final_strategies = ", ".join(list(set(page_strategies)))
-        final_strategies = strategies_out
-        jumps_count = total_jumps
+                page_score, page_words = play_analyzer(page)
+                page_scores.append(page_score)
+                word_count += page_words
 
-        clean_markdown = (re.sub(r'[\t\xa0]', ' ', markdown_content))
-        clean_text = to_titlecase(re.sub('[\t\xa0]', ' ', raw_content))
-        
-        output.append({
-            'Filepath': path,
-            'Content': clean_markdown,
-            'Text': clean_text,
-            'status': 'success',
-            'layout_conf_score': avg_score
-        })
-
+            risk_score = sum(page_scores) / len(page_scores) if page_scores else 0
+            
     except Exception as e:
-        import traceback
-        error_msg = f"Error: {str(e)} | Trace: {traceback.format_exc()[:100]}"
-        output.append({
-            'Filepath': path, 
-            'Content': markdown_content,
-            'Text': content,
-            'status': 'failed', 
-            'layout_conf_score': 0
-        })
-
-    # Always log to audit, using whatever data we successfully gathered
-    audit_log.append({
-        'Timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
-        'Filepath': path,
-        'Event_type': 'Layout_Analysis',
-        'Description': f"Layouts: {final_strategies}",
-        'Confidence_Score': avg_score,
-        'Details': f"Total Jumps: {jumps_count}"
+        status = f'failed: {str(e)[:50]}'
+        risk_score = 1.0 # Max risk if can't even open it
+    
+    # Output for pipeline and DB writer
+    output.append({
+        'filepath': path, 
+        'layout_score': risk_score, 
+        'status': status
     })
 
+    # Processing Log
+    audit_log.append({
+        'Timestamp': datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S'),
+        'Filepath': path,
+        'Layout_score': risk_score,
+        'Word_count': word_count,
+        'Processing_time': (datetime.datetime.now() - work_start).total_seconds(),
+        'Status': status
+    })
+
+# Output to KNIME
 knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame(output))
 knio.output_tables[1] = knio.Table.from_pandas(pd.DataFrame(audit_log))
