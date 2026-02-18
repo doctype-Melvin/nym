@@ -104,25 +104,114 @@ def run_pii_detection(text, manual_overrides=None):
             
     return final_hits
 
-def apply_neutralizer(text, job_dict_df):
-    """Tier 3: Neutralization Logic"""
-    current = text
-    # 1. Pattern Neutralization
+#Part of Neutralizer logic to detect person-related tokens
+
+def is_person_related(token):
+    """
+    Heuristic to filter nouns to person-related/job titles only.
+    Essential for reducing 'Highlight Fatigue' in the UI.
+    """
+    text = token.text.lower()
+    
+    # 1. HARD BLACKLIST (Months & High-Frequency False Positives)
+    # These often pass the '-er' suffix check but are never people.
+    blacklist = {
+        "september", "oktober", "november", "dezember", 
+        "zimmer", "nummer", "uhr", "meter", "liter", "wasser", "fehler"
+    }
+    if text in blacklist:
+        return False
+
+    # 2. SEMANTIC CHECK (Leverage spaCy's pre-built Entity Recognition)
+    # If the NER engine already tagged this as a Date, Time, or Quantity, ignore it.
+    if token.ent_type_ in ["DATE", "TIME", "CARDINAL", "QUANTITY"]:
+        return False
+
+    # 3. SUFFIX SIEVE (The core of German person-noun detection)
+    person_suffixes = (
+        "er", "in", "ent", "ant", "ist", "kraft", 
+        "experte", "leiter", "coach", "berater", "führung"
+    )
+    if text.endswith(person_suffixes):
+        return True
+    
+    # 4. EXPLICIT PERSON CHECK
+    # If spaCy identifies the word as a Person (PER), we want it.
+    if token.ent_type_ == "PER":
+        return True
+        
+    return False
+
+def apply_neutralizer(text, filepath, job_dict_df=None):
+    """
+    Tier 3: Hybrid Neutralizer (Regex + Dict + Linguistic Sensor)
+    Returns: (processed_text, list_of_events)
+    """
+    events = []
+    current = str(text)
+    ts_format = '%d.%m.%Y %H:%M:%S'
+    
+    # 1. THE ACTUATOR: Regex Patterns (High Confidence)
     kauf_patterns = [
-        (r"\b(\w+)(kaufmann|kauffrau)\b", r"\1fachkraft"),
-        (r"\b(Kaufmann|Kauffrau)\s+für\b", "Fachkraft für"),
-        (r"\b(Kaufmann|Kauffrau)\s\b", "Fachkraft ")
+        (r"\b(\w+)(kaufmann|kauffrau)\b", r"\1fachkraft", "Group Neutralization"),
+        (r"\b(Kaufmann|Kauffrau)\s+für\b", "Fachkraft für", "Title Neutralization"),
+        (r"\b(Kaufmann|Kauffrau)\s\b", "Fachkraft ", "Title Neutralization")
     ]
-    for pattern, replacement in kauf_patterns:
+
+    for pattern, replacement, label in kauf_patterns:
+        matches = re.finditer(pattern, current, flags=re.IGNORECASE)
+        for m in matches:
+            events.append({
+                'Timestamp': datetime.now().strftime(ts_format),
+                'Filepath': filepath,
+                'Event_type': 'Neutralization',
+                'Description': f"Pattern: '{m.group(0)}' -> '{replacement}'",
+                'Start': m.start(),
+                'End': m.end(),
+                'Confidence_Score': 1.0,
+                'Details': f"Regex-Rule: {label}"
+            })
         current = re.sub(pattern, replacement, current, flags=re.IGNORECASE)
 
-    # 2. Dictionary Neutralization
+    # 2. THE ACTUATOR: Dictionary Lookup (User Approved)
     if job_dict_df is not None:
-        for _, row in job_dict_df.iterrows():
+        # Sort dict by length descending to prevent substring issues
+        sorted_dict = job_dict_df.iloc[job_dict_df['original'].str.len().argsort()[::-1]]
+        for _, row in sorted_dict.iterrows():
             target = rf'\b{re.escape(str(row["original"]))}\b'
-            current = re.sub(target, row["neutral"], current, flags=re.IGNORECASE)
-            
-    return current
+            if re.search(target, current, flags=re.IGNORECASE):
+                # For simplicity in the log, we mark start/end as context-based
+                events.append({
+                    'Timestamp': datetime.now().strftime(ts_format),
+                    'Filepath': filepath,
+                    'Event_type': 'Neutralization',
+                    'Description': f"Dict: '{row['original']}' -> '{row['neutral']}'",
+                    'Start': 0, 'End': 0, # Global replace
+                    'Confidence_Score': 0.95,
+                    'Details': 'Manual Dictionary Match' 
+                })
+                current = re.sub(target, row["neutral"], current, flags=re.IGNORECASE)
+
+    # 3. THE SENSOR: Linguistic Detection (spaCy Morphology)
+    # We run this AFTER replacements to catch only what remains
+    doc = nlp(current)
+    for token in doc:
+        if (token.pos_ in ["NOUN", "PROPN", "PRON"]) and (is_person_related(token) or token.pos_ == "PRON"):
+            morph = token.morph.to_dict()
+            if "Gender" in morph:
+                # We do NOT replace here, we only flag for the UI/Audit Log
+                events.append({
+                    'Timestamp': datetime.now().strftime(ts_format),
+                    'Filepath': filepath,
+                    'Event_type': 'Compliance_Flag',
+                    'Description': f"Detected gendered term '{token.text}'",
+                    'Start': token.idx,
+                    'End': token.idx + len(token.text),
+                    'Confidence_Score': 0.75,
+                    'Details': f"Morphology ({morph['Gender']}): Flagged for human review"
+                })
+    
+    return current, events
 
 # --- THE MASTER ORCHESTRATOR ---
 
