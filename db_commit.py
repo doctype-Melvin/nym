@@ -4,9 +4,11 @@ import knime.scripting.io as knio
 from datetime import datetime
 import uuid
 
+# Commit session summary
 summary_results = knio.input_tables[0].to_pandas()
 
-db_path = "complyable_vault.db"
+db_path="../complyable_app/data/vault/complyable_vault.db"
+
 
 def db_commit(df):
     try: 
@@ -39,9 +41,9 @@ def db_commit(df):
                             processed_at
                         ))
             
-            connect.commit()
-            connect.close()
-            return 'Success', current_session_id
+        connect.commit()
+        connect.close()
+        return 'Success', current_session_id
     except Exception as e:
         return 'Error', str(e)
     

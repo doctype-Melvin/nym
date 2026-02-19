@@ -10,10 +10,10 @@ csv_path = "../complyable_app/data/refs/dict_seed.csv"
 os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
 def initialize_vault():
-  with sqlite3.connect(db_path) as conn:
+    with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
         
-        # 1. Audit Trail (The source of truth for UI highlights)
+        # 1. Audit Trail: Added 'details' and 'integrity_hash' to match your writer script
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS audit_trail (
                 record_uuid TEXT PRIMARY KEY,
@@ -22,21 +22,46 @@ def initialize_vault():
                 event_type TEXT,
                 pii_hash TEXT,
                 description TEXT,
-                confidence_score REAL
+                confidence_score REAL,
+                details TEXT,
+                integrity_hash TEXT
             )
         """)
 
-        # 2. Pending Review (The UI's input source)
+        # 2. Pending Review (Harmonized)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS pending_review (
                 filepath TEXT PRIMARY KEY,
                 content TEXT,
                 output_final TEXT,
-                status TEXT DEFAULT 'PENDING'
+                status TEXT DEFAULT 'PENDING',
+                integrity_hash TEXT
             )
         """)
 
-        # 3. Final Commit (The immutable archive)
+        # 3. Job Dictionary: Ensure columns are 'original' and 'neutral' for Tier 3
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS job_dict (
+                original TEXT PRIMARY KEY,
+                neutral TEXT,
+                category TEXT
+            )
+        """)
+
+        # Session Summary (Aligned with your UUID-based Writer)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS session_summary (
+                session_uuid TEXT,
+                file_name TEXT,
+                pii_count INTEGER,
+                neutral_count INTEGER,
+                trust_score REAL,
+                compliance_grade TEXT,
+                processed_at TEXT
+            )
+        """)
+
+        # Final Commit
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS final_commit (
                 filepath TEXT PRIMARY KEY,
@@ -47,40 +72,30 @@ def initialize_vault():
             )
         """)
 
-        # 4. Job Dictionary (Tier 3 Reference)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS job_dict (
-                original TEXT PRIMARY KEY,
-                neutral TEXT,
-                category TEXT
-            )
-        """)
-
-        # 5. Session Summary
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS session_summary (
-                session_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT,
-                files_processed INTEGER,
-                errors_logged INTEGER
-            )
-        """)
-
-        # 6. Column Guard: Ensure pii_hash exists if db was created earlier
+        # 4. Column Guards for Migration (Handling existing databases)
+        # Check audit_trail
         cursor.execute("PRAGMA table_info(audit_trail)")
-        columns = [col[1] for col in cursor.fetchall()]
-        if 'pii_hash' not in columns:
-            cursor.execute("ALTER TABLE audit_trail ADD COLUMN pii_hash TEXT")
+        audit_cols = [col[1] for col in cursor.fetchall()]
+        for col_name in ['pii_hash', 'details', 'integrity_hash']:
+            if col_name not in audit_cols:
+                cursor.execute(f"ALTER TABLE audit_trail ADD COLUMN {col_name} TEXT")
 
+        # Check pending_review
+        cursor.execute("PRAGMA table_info(pending_review)")
+        pending_cols = [col[1] for col in cursor.fetchall()]
+        if 'integrity_hash' not in pending_cols:
+            cursor.execute("ALTER TABLE pending_review ADD COLUMN integrity_hash TEXT")
+
+        # 5. Seeding Logic
         cursor.execute("SELECT COUNT(*) FROM job_dict")
         if cursor.fetchone()[0] == 0:
             if os.path.exists(csv_path):
                 seed_data = pd.read_csv(csv_path)
-                # Ensure columns match: original, neutral
+                # Ensure CSV headers match 'original', 'neutral', 'category'
                 seed_data.to_sql('job_dict', conn, if_exists='append', index=False)
-                print("Database seeded from CSV.")
+                print("Database seeded successfully.")
             else:
-                print(f"Warning: CSV not found at {os.path.abspath(csv_path)}. Table left empty.")       
+                print(f"Warning: CSV not found at {os.path.abspath(csv_path)}")
 
 initialize_vault()
 
