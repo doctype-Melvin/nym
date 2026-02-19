@@ -3,24 +3,37 @@ import sqlite3
 import pandas as pd
 from pathlib import Path
 import sys
-import unicodedata
+import html
 
 # Link the base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
 
+# Session State Management
+if 'edits' not in st.session_state:
+    st.session_state.edits = {}
+
+if 'revoked_ids' not in st.session_state:
+    st.session_state.revoked_ids = set()
+
 # Highlighter function
 def highlight_text(text, events):
 
-    if not events:
+    if not text or not events:
         return text
     
-    sorted_events = sorted(events, key=lambda x: x.get('Start', 0), reverse=True)
+    safe_text = html.escape(text)
+    
+    valid_events = [e for e in events if e.get('Start') is not None and e.get('End') is not None]
+    sorted_events = sorted(valid_events, key=lambda x: x.get('Start'), reverse=True)
 
-    highlighted = text
+    highlighted = safe_text
     for event in sorted_events:
-        start = event.get('Start', 0)
-        end = event.get('End', 0)
+        start = int(event['Start'])
+        end = int(event['End'])
+
+        if start < 0 or end > len(safe_text):
+            continue
 
         color = '#ffcdd2' if event['Event_type'] == 'Redaction' else \
                 '#bbdefb' if event['Event_type'] == 'Neutralization' else '#fff9c4'
@@ -79,20 +92,19 @@ else:
 
     row = df_pending[df_pending['filepath'] == selected_file].iloc[0]
 
-    # unicode normalization
-    raw_content = unicodedata.normalize('NFC', row['content'])
-    raw_output = unicodedata.normalize('NFC', row['output_final'])
-
     audit_events = get_audit_events(selected_file)
 
     col1, col2 = st.columns(2)
 
     with col1: 
-        st.subheader("Original content (with detections)")
-        st.info("PII already removed by Tier 1, 2 & 3")
-        html_original = highlight_text(raw_content, audit_events)
-        st.markdown(f"<div style='background-color: #f9f9f9-; padding: 15px; border-radius: 5px; font-family: sans-serif;'>{html_original}</div>", unsafe_allow_html=True)
-        #st.text_area("Source Content", row['content'], height=600, disabled=True)
+        st.subheader("Original content")
+        html_original = highlight_text(row['content'], audit_events)
+        wrapper = f"""
+        <div style="white-space: pre-wrap; font-family: sans-serif; font-size: 14px; color: #333;">
+            {html_original}
+        </div>
+        """
+        st.components.v1.html(wrapper, height=600, scrolling=True)
 
     
     with col2:

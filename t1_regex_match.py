@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import json
 import unicodedata
+import hashlib
 
 # Describe REGEX patterns
 
@@ -45,45 +46,37 @@ tier1_regex = [
     }
 ]
 
+# Standardize hashing
+def make_pii_hash(text):
+    clean_text = unicodedata.normalize('NFC', str(text)).strip()
+    return hashlib.sha256(clean_text.encode('utf-8')).hexdigest()
+
+
 # --- START --- TIER 1 --- START ---
 def get_tier1(text, filename):
     text = unicodedata.normalize('NFC', text)
-    
     all_matches = []
     new_logs = []
+
     # for each rule in list
     for rule in tier1_regex:
         for match in re.finditer(rule["pattern"], text):
-            found_text = text[match.start():match.end()]
+            found_text = match.group()
+            text_hash = make_pii_hash(found_text)
 
             all_matches.append({
-                "start": match.start(),
-                "end": match.end(), 
-                "label": rule["label"],
-                "length": match.end() - match.start()
+                "hash": text_hash,
+                "label": rule["label"]
                 })
             new_logs.append({
                 'File': filename,
                 'Node': 'Tier 1 Regex',
                 'Action': 'Redact',
-                'Detail': f"Regex {rule['label']}: {found_text}",
-                "start": match.start(),
-                "end": match.end(), 
+                "PII_hash": text_hash,
+                'Label': rule['label']
             })
                 
-    # Sort ascending and rule to let the longest win
-    all_matches.sort( key=lambda m: (m["start"], -m["length"]))
-
-    # collision resolver greedy
-    result = []
-    last_end = -1
-
-    for m in all_matches:
-        if m["start"] >= last_end:
-            result.append(m)
-            last_end = m["end"]
-
-    return result, new_logs, text
+    return all_matches, new_logs, text
     
 # --- END --- Tier1 masking layer ---
 
@@ -112,11 +105,10 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
         cumulative_log.append({
             'Timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
             'Filepath': filepath,
-            'Event_type': 'PII_Redaction',
-            'Description': log['Detail'],
-            'Start': log['start'],
-            'End': log['end'],
-            'Confidence_Score': 1.0,
+            'Event_type': 'PII_Hashed',
+            'PII_hash': log['PII_hash'],
+            'Description': f"Hashed {log['Label']}",
+            'Confidence_score': 1.0,
             'Details': "Tier1 Regex Pattern Match"
         })
     
