@@ -5,7 +5,8 @@ from datetime import datetime
 import os
 
 # Define the DB Path
-db_path = "../../data/vault/complyable_vault.db"
+db_path = "../complyable_app/data/vault/complyable_vault.db"
+csv_path = "../complyable_app/data/refs/dict_seed.csv"
 os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
 def initialize_vault():
@@ -49,9 +50,9 @@ def initialize_vault():
         # 4. Job Dictionary (Tier 3 Reference)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS job_dict (
-                gendered_term TEXT PRIMARY KEY,
-                neutral_term TEXT,
-                morphology_rules TEXT
+                original TEXT PRIMARY KEY,
+                neutral TEXT,
+                category TEXT
             )
         """)
 
@@ -71,7 +72,15 @@ def initialize_vault():
         if 'pii_hash' not in columns:
             cursor.execute("ALTER TABLE audit_trail ADD COLUMN pii_hash TEXT")
 
-        conn.commit()
+        cursor.execute("SELECT COUNT(*) FROM job_dict")
+        if cursor.fetchone()[0] == 0:
+            if os.path.exists(csv_path):
+                seed_data = pd.read_csv(csv_path)
+                # Ensure columns match: original, neutral
+                seed_data.to_sql('job_dict', conn, if_exists='append', index=False)
+                print("Database seeded from CSV.")
+            else:
+                print(f"Warning: CSV not found at {os.path.abspath(csv_path)}. Table left empty.")       
 
 initialize_vault()
 

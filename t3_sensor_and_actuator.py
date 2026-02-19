@@ -22,7 +22,7 @@ def is_person_related(token):
     return text.endswith(person_suffixes) or token.ent_type_ == "PER"
 
 # --- DB DATA ---
-db_path = "../../data/vault/complyable_vault.db" 
+db_path = "../complyable_app/data/vault/complyable_vault.db" 
 conn = sqlite3.connect(db_path)
 job_table = pd.read_sql_query("SELECT original, neutral FROM job_dict", conn)
 conn.close()
@@ -50,30 +50,31 @@ for index, row in input_df.iterrows():
         (r"\b(Kaufmann|Kauffrau)\s\b", "Fachkraft ", "Title Neutralization")
     ]
     for pattern, replacement, label in kauf_patterns:
-        found = re.findall(pattern, current, flags=re.IGNORECASE)
-        if found:
-            for match in found:
-                match_text = match.group()
-                text_hash = make_pii_hash(match_text)
-                cumulative_log.append({
-                    'Timestamp': datetime.now().strftime(ts_format),
-                    'Filepath': filepath, 'Event_type': 'PII_Hashed',
-                    'PII_Hash': text_hash,
-                    'Description': f"Neutralized: '{match_text}' -> '{replacement}'",
-                    'Confidence_Score': 1.0, 'Details': f"Regex-Rule: {label}"
-                })
-            current = re.sub(pattern, replacement, current, flags=re.IGNORECASE)
+        for match in re.finditer(pattern, current, flags=re.IGNORECASE):
+            match_text = match.group()
+            text_hash = make_pii_hash(match_text)
+            cumulative_log.append({
+                'Timestamp': datetime.now().strftime(ts_format),
+                'Filepath': filepath, 'Event_type': 'PII_Hashed',
+                'PII_Hash': text_hash,
+                'Description': f"Neutralized: '{match_text}' -> '{replacement}'",
+                'Confidence_Score': 1.0, 'Details': f"Regex-Rule: {label}"
+            })
+        current = re.sub(pattern, replacement, current, flags=re.IGNORECASE)
 
     # 2. Dictionary (Your v1 logic)
     for _, d_row in job_table.iterrows():
         original = str(d_row['original'])
         target = rf'\b{re.escape(str(original))}\b'
-        if re.search(target, current, flags=re.IGNORECASE):
+        match = re.search(target, current, flags=re.IGNORECASE)
+        if match:
+            actual_text = match.group()
+            text_hash = make_pii_hash(actual_text)
             cumulative_log.append({
                 'Timestamp': datetime.now().strftime(ts_format),
                 'Filepath': filepath, 'Event_type': 'PII_Hashed',
                 'PII_Hash': text_hash,
-                'Description': f"Neutralized: '{original}' -> '{d_row['neutral']}'",
+                'Description': f"Neutralized: '{actual_text}' -> '{d_row['neutral']}'",
                 'Confidence_Score': 0.9, 'Details': 'Manual Dictionary Match'
             })
             current = re.sub(target, d_row["neutral"], current, flags=re.IGNORECASE)
