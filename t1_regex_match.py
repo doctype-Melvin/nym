@@ -2,6 +2,7 @@ import knime.scripting.io as knio
 import pandas as pd
 import re
 import json
+import unicodedata
 
 # Describe REGEX patterns
 
@@ -46,13 +47,15 @@ tier1_regex = [
 
 # --- START --- TIER 1 --- START ---
 def get_tier1(text, filename):
+    text = unicodedata.normalize('NFC', text)
+    
     all_matches = []
     new_logs = []
     # for each rule in list
     for rule in tier1_regex:
-        # find matches for the current pattern
         for match in re.finditer(rule["pattern"], text):
-            # print(match.start(), match.end(), rule["label"])
+            found_text = text[match.start():match.end()]
+
             all_matches.append({
                 "start": match.start(),
                 "end": match.end(), 
@@ -63,7 +66,7 @@ def get_tier1(text, filename):
                 'File': filename,
                 'Node': 'Tier 1 Regex',
                 'Action': 'Redact',
-                'Detail': f"Regex match: {rule['label']}",
+                'Detail': f"Regex {rule['label']}: {found_text}",
                 "start": match.start(),
                 "end": match.end(), 
             })
@@ -80,13 +83,14 @@ def get_tier1(text, filename):
             result.append(m)
             last_end = m["end"]
 
-    return result, new_logs
+    return result, new_logs, text
     
 # --- END --- Tier1 masking layer ---
 
 # KNIME instructions
 input_df = knio.input_tables[0].to_pandas()
 tier1_out = []
+normalized_contents = []
 
 try: 
     cumulative_log = knio.input_tables[1].to_pandas().to_dict('records')
@@ -97,11 +101,10 @@ except:
 
 # Loop over all provided filepaths in dir
 for content, filepath in zip(input_df['Content'], input_df['Filepath']):
-    if not isinstance(content, string) or content == 'SKIPPED':
-        tier1_out.append(json.dumps([]))
-        continue
+    
+    matches, new_logs, clean_text = get_tier1(content, filepath)
 
-    matches, new_logs = get_tier1(content, filepath)
+    normalized_contents.append(clean_text)
 
  #   tier1_results.append(json.dumps(matches))
 
@@ -109,19 +112,19 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
         cumulative_log.append({
             'Timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
             'Filepath': filepath,
-            'Event_type': 'PII_Detection_T1',
+            'Event_type': 'PII_Redaction',
             'Description': log['Detail'],
             'Start': log['start'],
             'End': log['end'],
             'Confidence_Score': 1.0,
-            'Details': "Regex Pattern Match"
+            'Details': "Tier1 Regex Pattern Match"
         })
     
     tier1_out.append(json.dumps(matches))
 
 knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Filepath": input_df['Filepath'],
-    "Content": input_df['Content'],
+    "Content": normalized_contents,
     "Tier1_matches": tier1_out,
     }))
 
