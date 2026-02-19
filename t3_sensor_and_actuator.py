@@ -3,20 +3,26 @@ import pandas as pd
 import spacy
 import re
 import sqlite3
+import unicodedata
+import hashlib
 from datetime import datetime
 
 # --- CONFIG ---
 nlp = spacy.load("de_core_news_lg")
 
+def make_pii_hash(text):
+    clean_text = unicodedata.normalize('NFC', str(text)).strip()
+    return hashlib.sha256(clean_text.encode('utf-8')).hexdigest()
+
 def is_person_related(token):
     text = token.text.lower()
-    blacklist = {"september", "oktober", "november", "dezember", "zimmer", "nummer", "uhr"}
+    blacklist = {"september", "oktober", "november", "dezember"}
     if text in blacklist or token.ent_type_ in ["DATE", "TIME", "CARDINAL"]: return False
     person_suffixes = ("er", "in", "ent", "ant", "ist", "kraft", "experte", "leiter")
     return text.endswith(person_suffixes) or token.ent_type_ == "PER"
 
 # --- DB DATA ---
-db_path = "complyable_vault.db" # Ensure path is correct for your env
+db_path = "../../data/vault/complyable_vault.db" 
 conn = sqlite3.connect(db_path)
 job_table = pd.read_sql_query("SELECT original, neutral FROM job_dict", conn)
 conn.close()
@@ -34,7 +40,7 @@ final_texts = []
 ts_format = '%d.%m.%Y %H:%M:%S'
 
 for index, row in input_df.iterrows():
-    current = str(row['Redacted'])
+    current = str(row['Content'])
     filepath = row['Filepath']
     
     # 1. Patterns (Your v1 logic)
@@ -47,24 +53,28 @@ for index, row in input_df.iterrows():
         found = re.findall(pattern, current, flags=re.IGNORECASE)
         if found:
             for match in found:
-                match_text = "".join(match) if isinstance(match, tuple) else match
+                match_text = match.group()
+                text_hash = make_pii_hash(match_text)
                 cumulative_log.append({
                     'Timestamp': datetime.now().strftime(ts_format),
-                    'Filepath': filepath, 'Event_type': 'Neutralization',
-                    'Description': f"Pattern: '{match_text}' -> '{replacement}'",
-                    'Start': 0, 'End': len(current), 'Confidence_Score': 1.0, 'Details': f"Regex-Rule: {label}"
+                    'Filepath': filepath, 'Event_type': 'PII_Hashed',
+                    'PII_Hash': text_hash,
+                    'Description': f"Neutralized: '{match_text}' -> '{replacement}'",
+                    'Confidence_Score': 1.0, 'Details': f"Regex-Rule: {label}"
                 })
             current = re.sub(pattern, replacement, current, flags=re.IGNORECASE)
 
     # 2. Dictionary (Your v1 logic)
     for _, d_row in job_table.iterrows():
-        target = rf'\b{re.escape(str(d_row["original"]))}\b'
+        original = str(d_row['original'])
+        target = rf'\b{re.escape(str(original))}\b'
         if re.search(target, current, flags=re.IGNORECASE):
             cumulative_log.append({
                 'Timestamp': datetime.now().strftime(ts_format),
-                'Filepath': filepath, 'Event_type': 'Neutralization',
-                'Description': f"Dict: '{d_row['original']}' -> '{d_row['neutral']}'",
-                'Start': 0, 'End': len(current), 'Confidence_Score': 0.9, 'Details': 'Manual Dictionary Match'
+                'Filepath': filepath, 'Event_type': 'PII_Hashed',
+                'PII_Hash': text_hash,
+                'Description': f"Neutralized: '{original}' -> '{d_row['neutral']}'",
+                'Confidence_Score': 0.9, 'Details': 'Manual Dictionary Match'
             })
             current = re.sub(target, d_row["neutral"], current, flags=re.IGNORECASE)
 
@@ -74,13 +84,13 @@ for index, row in input_df.iterrows():
         if (token.pos_ in ["NOUN", "PROPN", "PRON"]) and (is_person_related(token) or token.pos_ == "PRON"):
             morph = token.morph.to_dict()
             if "Gender" in morph:
-                # We log this as a flag because it wasn't replaced by patterns/dict
-                cumulative_log.append({
+                text_hash = make_pii_hash(token.text)
+            cumulative_log.append({
                     'Timestamp': datetime.now().strftime(ts_format),
-                    'Filepath': filepath, 'Event_type': 'Compliance_Flag',
-                    'Description': f"Gendered term '{token.text}' detected",
-                    'Start': token.idx, 'End': token.idx + len(token.text),
-                    'Confidence_Score': 0.75, 'Details': "Morphology hit: Flagged for review"
+                    'Filepath': filepath, 'Event_type': 'PII_Hashed',
+                    'PII_Hash': text_hash,
+                    'Description': f"Gendered flag: '{token.text}'",
+                    'Confidence_Score': 0.75, 'Details': "Morphology hit"
                 })
     
     final_texts.append(current)

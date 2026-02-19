@@ -1,7 +1,8 @@
 import knime.scripting.io as knio
 import pandas as pd
 import spacy
-import re
+import hashlib
+import unicodedata
 import json
 from collections import defaultdict
 
@@ -18,15 +19,22 @@ ruler.add_patterns(patterns)
 
 ent_labels = ["PER", "LOC", 'PHONE', 'EMAIL']
 
+def make_pii_hash(text):
+    clean_text = unicodedata.normalize('NFC', str(text)).strip()
+    return hashlib.sha256(clean_text.encode('utf-8')).hexdigest()
+
+
 # --- START --- TIER 2 --- START ---
 def get_tier2(doc, nlp, filename):
     all_matches = []
     new_logs = []
-
     beam_scores = get_beam_confidence(nlp, doc)
+
     # for each rule in list
     for ent in doc.ents:
         if ent.label_ in ent_labels or ent.label_.startswith("LOC_STR"):
+            found_text = ent.text
+            text_hash = make_pii_hash(found_text)
 
             score_key = (ent.start, ent.end, ent.label_)
 
@@ -38,19 +46,15 @@ def get_tier2(doc, nlp, filename):
             conf = round(float(conf), 4)
 
             all_matches.append({
-                "start": ent.start_char,
-                "end": ent.end_char, 
+                "hash": text_hash, 
                 "label": ent.label_,
-                "length": ent.end_char - ent.start_char,
                 "confidence": conf
                 })
             new_logs.append({
                 'File': filename,
                 'Node': 'Tier 2 spaCy DEU',
-                'Action': 'Redact',
-                'Detail': f'PII found: ({ent.label_})',
-                'Start': ent.start_char,
-                'End': ent.end_char,
+                'PII_hash': text_hash,
+                'Label': ent.label_,
                 'Score': conf
                 })
         
@@ -97,11 +101,10 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
         cumulative_log.append({
             'Timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
             'Filepath': filepath,
-            'Event_type': 'PII_Detection_T2',
-            'Description': log['Detail'],
-            'Start': log['Start'],
-            'End': log['End'],
-            'Confidence_Score': log['Score'],
+            'Event_type': 'PII_Hashed',
+            'PII_hash': log['PII_hash'],
+            'Description': f"Hashed {log['Label']}",
+            'Confidence_score': log['Score'],
             'Details': "NLP matching using spaCy library - model: de_core_news_lg"
         })
 
