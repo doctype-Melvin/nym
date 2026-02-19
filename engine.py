@@ -6,6 +6,7 @@ import sqlite3
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+import unicodedata
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_PATH = BASE_DIR / "data" / "vault" / "complyable_vault.db"
@@ -59,6 +60,7 @@ def get_beam_confidence(doc, beam_width=16, beam_density=0.0001):
 
 def run_pii_detection(text, manual_overrides=None):
     """Combines Tier 1 and Tier 2 Detection logic"""
+    text = unicodedata.normalize('NFC', text)
     all_hits = []
     
     # Tier 1: Regex
@@ -105,7 +107,7 @@ def run_pii_detection(text, manual_overrides=None):
             final_hits.append(h)
             last_end = h['end']
             
-    return final_hits
+    return final_hits, text
 
 #Part of Neutralizer logic to detect person-related tokens
 
