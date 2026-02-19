@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 from pathlib import Path
 import sys
+import unicodedata
 
 # Link the base directory
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -78,6 +79,10 @@ else:
 
     row = df_pending[df_pending['filepath'] == selected_file].iloc[0]
 
+    # unicode normalization
+    raw_content = unicodedata.normalize('NFC', row['content'])
+    raw_output = unicodedata.normalize('NFC', row['output_final'])
+
     audit_events = get_audit_events(selected_file)
 
     col1, col2 = st.columns(2)
@@ -85,7 +90,7 @@ else:
     with col1: 
         st.subheader("Original content (with detections)")
         st.info("PII already removed by Tier 1, 2 & 3")
-        html_original = highlight_text(row['content'], audit_events)
+        html_original = highlight_text(raw_content, audit_events)
         st.markdown(f"<div style='background-color: #f9f9f9-; padding: 15px; border-radius: 5px; font-family: sans-serif;'>{html_original}</div>", unsafe_allow_html=True)
         #st.text_area("Source Content", row['content'], height=600, disabled=True)
 
