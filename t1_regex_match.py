@@ -51,6 +51,14 @@ def make_pii_hash(text):
     clean_text = unicodedata.normalize('NFC', str(text)).strip()
     return hashlib.sha256(clean_text.encode('utf-8')).hexdigest()
 
+def to_titlecase(text):
+    text = re.sub(r'\b([A-ZÜÖÄ])(?:\s([A-ZÜÖÄ]))+\b', 
+                  lambda m: m.group(0).replace(" ", ""), text)
+    def replace_match(match):
+        word = match.group(0)
+        return word.lower().title() if len(word) >= 3 else word
+    return re.sub(r'\b[A-ZÜÖÄß]{3,}\b', replace_match, text)
+
 
 # --- START --- TIER 1 --- START ---
 def get_tier1(text, filename):
