@@ -1,77 +1,79 @@
 import sqlite3
 import pandas as pd
 import knime.scripting.io as knio
-import uuid
 from datetime import datetime
+import os
 
 # Define the DB Path
-db_path = "complyable_vault.db"
+db_path = "../../data/vault/complyable_vault.db"
+os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
 def initialize_vault():
-    try:
-        conn = sqlite3.connect(db_path)
+  with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
-
-        # Audit Trail (Hardened with UUID and Integrity Hash field)
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS audit_trail (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                record_uuid TEXT UNIQUE,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                filepath TEXT,
-                event_code TEXT,
-                event_type TEXT,
-                description TEXT,
-                confidence_score REAL,
-                details TEXT,
-                integrity_hash TEXT 
-            )
-        ''')
         
-        # Job Dictionary (Source of Truth)
-        cursor.execute('''
+        # 1. Audit Trail (The source of truth for UI highlights)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS audit_trail (
+                record_uuid TEXT PRIMARY KEY,
+                filepath TEXT,
+                timestamp TEXT,
+                event_type TEXT,
+                pii_hash TEXT,
+                description TEXT,
+                confidence_score REAL
+            )
+        """)
+
+        # 2. Pending Review (The UI's input source)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pending_review (
+                filepath TEXT PRIMARY KEY,
+                content TEXT,
+                output_final TEXT,
+                status TEXT DEFAULT 'PENDING'
+            )
+        """)
+
+        # 3. Final Commit (The immutable archive)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS final_commit (
+                filepath TEXT PRIMARY KEY,
+                content_sanitized TEXT,
+                approval_timestamp TEXT,
+                recruiter_id TEXT,
+                certificate_hash TEXT
+            )
+        """)
+
+        # 4. Job Dictionary (Tier 3 Reference)
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS job_dict (
-                original TEXT PRIMARY KEY,
-                neutral TEXT,
-                category TEXT,
-                last_updated DATETIME
+                gendered_term TEXT PRIMARY KEY,
+                neutral_term TEXT,
+                morphology_rules TEXT
             )
-        ''')
+        """)
 
-        # Session Summary (Certificate Data)
-        cursor.execute('''
+        # 5. Session Summary
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS session_summary (
-                session_uuid TEXT PRIMARY KEY,
-                file_name TEXT,
-                pii_count INTEGER,
-                neutral_count INTEGER,
-                trust_score REAL,
-                compliance_grade TEXT,
-                processed_at DATETIME
+                session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT,
+                files_processed INTEGER,
+                errors_logged INTEGER
             )
-        ''')
+        """)
 
-        # Indexing for best performance
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_filepath ON audit_trail (filepath)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_audit_event ON audit_trail (event_code)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_summary_session ON session_summary (session_uuid)')
+        # 6. Column Guard: Ensure pii_hash exists if db was created earlier
+        cursor.execute("PRAGMA table_info(audit_trail)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'pii_hash' not in columns:
+            cursor.execute("ALTER TABLE audit_trail ADD COLUMN pii_hash TEXT")
 
         conn.commit()
-        conn.close()
-        return "Success", f"Vault initialized at {db_path}"
-    except Exception as e:
-        return "Error", str(e)
 
-# Execute
-status, message = initialize_vault()
+initialize_vault()
 
-# 3. Create Output Table for KNIME
-# This provides visual confirmation in the KNIME GUI that the node executed
-output_df = pd.DataFrame([{
-    "Status": status,
-    "Message": message,
-    "Session_Run_ID": str(uuid.uuid4()), # Generates a fresh ID for this specific run
-    "Initialization_Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-}])
-
-knio.output_tables[0] = knio.Table.from_pandas(output_df)
+input_table = knio.input_tables[0].to_pandas()
+knio.output_tables[0] = knio.Table.from_pandas(input_table)

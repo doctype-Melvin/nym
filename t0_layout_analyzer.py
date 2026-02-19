@@ -4,7 +4,8 @@ import pandas as pd
 import re
 import datetime
 
-# --- START --- Layout Analyzer --- 
+# --- temporary silent analyzer
+# -- recent failing version in codebase
 def play_analyzer(page):
     """
     Smoke tests for layout complexity.
@@ -12,21 +13,8 @@ def play_analyzer(page):
     """
     words = page.extract_words()
     if not words: return 0.0, 0
-    
-    # 1. Fragment Density: High word count in small boxes = complex layout
-    # (Typical Canva/Designer PDFs where every line is its own object)
-    fragmentation = len(words) / 100 
-
-    # 2. Vertical Entropy: How many different left-margin start points?
-    # Standard docs have ~5-10. Chaos docs have 40+.
-    x_starts = [round(w['x0']) for w in words]
-    unique_starts = len(set(x_starts))
-    entropy = unique_starts / 40 
-
-    # 3. Collision Risk: Very basic check for overlapping X-ranges
-    # Just average the fragmentation and entropy for a reliable heuristic
-    risk_score = round(min(1.0, max(0.0, (fragmentation + entropy) / 2)), 2)
-    return risk_score, len(words)
+       
+    return 0.05, len(words)
 
 
 input_df = knio.input_tables[0].to_pandas()
@@ -73,12 +61,13 @@ for _, row in input_df.iterrows():
 
     # Processing Log
     audit_log.append({
-        'Timestamp': datetime.datetime.now().strftime('%d.%m.%Y %H:%M:%S'),
+        'Timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
         'Filepath': path,
-        'Layout_score': risk_score,
-        'Word_count': word_count,
-        'Processing_time': (datetime.datetime.now() - work_start).total_seconds(),
-        'Status': status
+        'Event_type': 'Layout Analyzer',
+        'PII_hash': None,
+        'Description': None,
+        'Confidence_score': 1.0,
+        'Details': "Layout analysis"            
     })
 
 # Output to KNIME
