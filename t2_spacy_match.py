@@ -101,7 +101,7 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
         cumulative_log.append({
             'Timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
             'Filepath': filepath,
-            'Event_type': 'PII_Hashed',
+            'Event_type': 'PII_hashed',
             'PII_hash': log['PII_hash'],
             'Description': f"Hashed {log['Label']}",
             'Confidence_score': log['Score'],
