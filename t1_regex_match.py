@@ -68,7 +68,7 @@ def get_tier1(text, filename):
 
     # for each rule in list
     for rule in tier1_regex:
-        matches = set(re.findall(rule['pattern'], text)) # using set to avoid dupes
+        matches = set(re.findall(rule['pattern'], text, flags=re.IGNORECASE)) # using set to avoid dupes
         
         for match in matches:
             text_hash = make_pii_hash(match)
@@ -89,7 +89,8 @@ def get_tier1(text, filename):
 
             # perform redaction
             redaction_label = f"[{label}]"
-            text = re.sub(rf'\b{re.escape(match)}\b', redaction_label, text)
+            #text = re.sub(rf'\b{re.escape(match)}\b', redaction_label, text)
+            text = text.replace(match, redaction_label)
 
     return all_matches, new_logs, text
 
