@@ -68,9 +68,11 @@ def get_tier1(text, filename):
 
     # for each rule in list
     for rule in tier1_regex:
-        for match in re.finditer(rule["pattern"], text):
-            found_text = match.group()
-            text_hash = make_pii_hash(found_text)
+        matches = set(re.findall(rule['pattern'], text))
+        
+        for match in matches:
+            text_hash = make_pii_hash(match)
+            label = rule['label']
         # replace found_text in text with label
             all_matches.append({
                 "hash": text_hash,
