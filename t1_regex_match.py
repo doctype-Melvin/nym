@@ -51,6 +51,7 @@ def make_pii_hash(text):
     clean_text = unicodedata.normalize('NFC', str(text)).strip()
     return hashlib.sha256(clean_text.encode('utf-8')).hexdigest()
 
+# title casing
 def to_titlecase(text):
     text = re.sub(r'\b([A-ZÜÖÄ])(?:\s([A-ZÜÖÄ]))+\b', 
                   lambda m: m.group(0).replace(" ", ""), text)
@@ -59,10 +60,9 @@ def to_titlecase(text):
         return word.lower().title() if len(word) >= 3 else word
     return re.sub(r'\b[A-ZÜÖÄß]{3,}\b', replace_match, text)
 
-
 # --- START --- TIER 1 --- START ---
 def get_tier1(text, filename):
-    text = unicodedata.normalize('NFC', text)
+    text = to_titlecase(unicodedata.normalize('NFC', text))
     all_matches = []
     new_logs = []
 
@@ -71,7 +71,7 @@ def get_tier1(text, filename):
         for match in re.finditer(rule["pattern"], text):
             found_text = match.group()
             text_hash = make_pii_hash(found_text)
-
+        # replace found_text in text with label
             all_matches.append({
                 "hash": text_hash,
                 "label": rule["label"]
@@ -113,7 +113,7 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
         cumulative_log.append({
             'Timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
             'Filepath': filepath,
-            'Event_type': 'PII_Hashed',
+            'Event_type': 'PII_hashed',
             'PII_hash': log['PII_hash'],
             'Description': f"Hashed {log['Label']}",
             'Confidence_score': 1.0,
