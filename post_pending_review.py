@@ -10,13 +10,13 @@ connect = sqlite3.connect(db_path)
 cursor = connect.cursor()
 
 for _, row in data.iterrows():
-    i_hash = generate_integrity_hash(str(row['Output_final']))
+    i_hash = generate_integrity_hash(str(row['Output']))
 
     cursor.execute("""
         INSERT OR REPLACE INTO pending_review 
-        (filepath, content, output_final, status, integrity_hash)
+        (filepath, original, output, status, integrity_hash)
         VALUES (?, ?, ?, ?, ?)
-    """, (row['Filepath'], row['Content'], row['Output_final'], 'PENDING', i_hash))
+    """, (row['Filepath'], row['Original'], row['Output'], 'PENDING', i_hash))
     
 connect.commit()
 connect.close()

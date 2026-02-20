@@ -6,7 +6,7 @@ import hashlib
 
 # cumulative_log dataframe
 log_df = knio.input_tables[0].to_pandas()
-db_path = "complyable_vault.db"
+db_path="../complyable_app/data/vault/complyable_vault.db"
 
 def archive_audit_trail(df):
     connect = sqlite3.connect(db_path)
@@ -18,29 +18,27 @@ def archive_audit_trail(df):
 
         # Integrity has based on SHA-256 fingerprint of event
         # Proof that record wasn't modified
-        hash_string = f'{row["Timestamp"]}{row["Filepath"]}{row["Description"]}'
+        hash_string = f'{row["timestamp"]}{row["filepath"]}{row.get("pii_Hash", "")}'
         integrity_hash = hashlib.sha256(hash_string.encode()).hexdigest()
 
         cursor.execute('''
             INSERT INTO audit_trail (
                        record_uuid,
                        filepath,
+                       timestamp,
                        event_code,
-                       event_type,
-                       description,
+                       pii_hash,
                        confidence_score,
-                       details,
                        integrity_hash
                        )
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)
                        ''', (
-                           rec_uuid,
-                           row['Filepath'],
-                           row.get('Event_Code', 'GEN-01'),
-                           row['Event_type'],
-                           row['Description'],
-                           float(row['Confidence_Score']),
-                           row['Details'],
+                           str(rec_uuid),
+                           str(row['filepath']),
+                           str(row['timestamp']),
+                           str(row['event_code']),
+                           str(row.get('pii_hash', '')),
+                           float(row.get('Confidence_score', 0.0)),
                            integrity_hash
                        ))
         records_added += 1
@@ -51,4 +49,4 @@ def archive_audit_trail(df):
 
 total_saved = archive_audit_trail(log_df)
 
-knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame([{"Records_Archived": total_saved}]))
+knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame([{"Records_Archived": total_saved}])) 
