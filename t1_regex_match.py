@@ -46,12 +46,12 @@ tier1_regex = [
     }
 ]
 
-# Standardize hashing
+# Standardize hashing function
 def make_pii_hash(text):
     clean_text = unicodedata.normalize('NFC', str(text)).strip()
     return hashlib.sha256(clean_text.encode('utf-8')).hexdigest()
 
-# title casing
+# Title casing function
 def to_titlecase(text):
     text = re.sub(r'\b([A-ZÜÖÄ])(?:\s([A-ZÜÖÄ]))+\b', 
                   lambda m: m.group(0).replace(" ", ""), text)
@@ -60,7 +60,7 @@ def to_titlecase(text):
         return word.lower().title() if len(word) >= 3 else word
     return re.sub(r'\b[A-ZÜÖÄß]{3,}\b', replace_match, text)
 
-# --- START --- TIER 1 --- START ---
+# --- TIER 1 REGEX matching & redacting logic ---
 def get_tier1(text, filename):
     text = to_titlecase(unicodedata.normalize('NFC', text))
     all_matches = []
@@ -68,13 +68,14 @@ def get_tier1(text, filename):
 
     # for each rule in list
     for rule in tier1_regex:
-        matches = set(re.findall(rule['pattern'], text))
+        matches = set(re.findall(rule['pattern'], text)) # using set to avoid dupes
         
         for match in matches:
             text_hash = make_pii_hash(match)
             label = rule['label']
-        # replace found_text in text with label
-            all_matches.append({
+
+            # write log entries
+            all_matches.append({ # this might be redundant
                 "hash": text_hash,
                 "label": rule["label"]
                 })
@@ -83,24 +84,24 @@ def get_tier1(text, filename):
                 'Node': 'Tier 1 Regex',
                 'Action': 'Redact',
                 "PII_hash": text_hash,
-                'Label': rule['label']
+                'Label': label
             })
-                
+
+            # perform redaction
+            redaction_label = f"[{label}]"
+            text = re.sub(rf'\b{re.escape(match)}\b', redaction_label, text)
+
     return all_matches, new_logs, text
-    
-# --- END --- Tier1 masking layer ---
 
 # KNIME instructions
 input_df = knio.input_tables[0].to_pandas()
-tier1_out = []
+tier1_out = [] # this might be redundant - no need to pass the list of matches
 normalized_contents = []
 
 try: 
     cumulative_log = knio.input_tables[1].to_pandas().to_dict('records')
 except:
     cumulative_log = []
-
-#tier1_results = []
 
 # Loop over all provided filepaths in dir
 for content, filepath in zip(input_df['Content'], input_df['Filepath']):
@@ -109,7 +110,6 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
 
     normalized_contents.append(clean_text)
 
- #   tier1_results.append(json.dumps(matches))
 
     for log in new_logs:
         cumulative_log.append({
