@@ -4,6 +4,7 @@ import spacy
 import hashlib
 import unicodedata
 import json
+import re
 from collections import defaultdict
 
 nlp = spacy.load("de_core_news_lg")
@@ -25,7 +26,7 @@ def make_pii_hash(text):
 
 
 # --- START --- TIER 2 --- START ---
-def get_tier2(doc, nlp, filename):
+def get_tier2(doc, nlp, filename, text):
     all_matches = []
     new_logs = []
     beam_scores = get_beam_confidence(nlp, doc)
@@ -35,6 +36,7 @@ def get_tier2(doc, nlp, filename):
         if ent.label_ in ent_labels or ent.label_.startswith("LOC_STR"):
             found_text = ent.text
             text_hash = make_pii_hash(found_text)
+            label = ent.label_
 
             score_key = (ent.start, ent.end, ent.label_)
 
@@ -45,21 +47,24 @@ def get_tier2(doc, nlp, filename):
 
             conf = round(float(conf), 4)
 
-            all_matches.append({
+            all_matches.append({ # this seems redundant in hash-based logic
                 "hash": text_hash, 
-                "label": ent.label_,
+                "label": label,
                 "confidence": conf
                 })
             new_logs.append({
                 'File': filename,
                 'Node': 'Tier 2 spaCy DEU',
+                'Action': 'Redact',
                 'PII_hash': text_hash,
                 'Label': ent.label_,
                 'Score': conf
                 })
         
-
-    return all_matches, new_logs
+            redaction_label = f"[{label}]"
+            text = re.sub(rf'\b{re.escape(found_text)}\b', redaction_label, text)
+    
+    return all_matches, new_logs, text
 # --- END --- Tier2 --- END ----
 
 # --- START - BEAM SEARCH CONF - START ---
@@ -95,7 +100,9 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
 
     doc = nlp(content)
 
-    all_matches, new_logs = get_tier2(doc, nlp, filepath)
+    all_matches, new_logs, text = get_tier2(doc, nlp, filepath, content)
+
+    tier2_out.append(text)
 
     for log in new_logs:
         cumulative_log.append({
@@ -108,10 +115,10 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
             'Details': "NLP matching using spaCy library - model: de_core_news_lg"
         })
 
-    tier2_out.append(json.dumps(all_matches))
+   # tier2_out.append(json.dumps(all_matches)) # this seems redundant in hash-based logic
 
 output_df = input_df.copy()
-output_df['Tier2_matches'] = tier2_out
+output_df['Content'] = tier2_out
 
 cumulative_log = pd.DataFrame(cumulative_log)
 
