@@ -54,11 +54,11 @@ for index, row in input_df.iterrows():
             match_text = match.group()
             text_hash = make_pii_hash(match_text)
             cumulative_log.append({
-                'Timestamp': datetime.now().strftime(ts_format),
-                'Filepath': filepath, 'Event_type': 'PII_Hashed',
-                'PII_Hash': text_hash,
-                'Description': f"Neutralized: '{match_text}' -> '{replacement}'",
-                'Confidence_Score': 1.0, 'Details': f"Regex-Rule: {label}"
+                'timestamp': datetime.now().strftime(ts_format),
+                'filepath': filepath,
+                'event_code': 'T3-GIP', # Gender-Identifying-Phrase Neutralized Regex
+                'pii_hash': text_hash,
+                'confidence_score': 1.0
             })
         current = re.sub(pattern, replacement, current, flags=re.IGNORECASE)
 
@@ -71,11 +71,11 @@ for index, row in input_df.iterrows():
             actual_text = match.group()
             text_hash = make_pii_hash(actual_text)
             cumulative_log.append({
-                'Timestamp': datetime.now().strftime(ts_format),
-                'Filepath': filepath, 'Event_type': 'PII_Hashed',
-                'PII_Hash': text_hash,
-                'Description': f"Neutralized: '{actual_text}' -> '{d_row['neutral']}'",
-                'Confidence_Score': 0.9, 'Details': 'Manual Dictionary Match'
+                'timestamp': datetime.now().strftime(ts_format),
+                'filepath': filepath,
+                'event_code': 'T3-GIP', # Gender-Identifying-Phrase Neutralized Dictionary
+                'pii_hash': text_hash,
+                'confidence_score': 0.9
             })
             current = re.sub(target, d_row["neutral"], current, flags=re.IGNORECASE)
 
@@ -87,11 +87,11 @@ for index, row in input_df.iterrows():
             if "Gender" in morph:
                 text_hash = make_pii_hash(token.text)
             cumulative_log.append({
-                    'Timestamp': datetime.now().strftime(ts_format),
-                    'Filepath': filepath, 'Event_type': 'PII_Hashed',
-                    'PII_Hash': text_hash,
-                    'Description': f"Gendered flag: '{token.text}'",
-                    'Confidence_Score': 0.75, 'Details': "Morphology hit"
+                    'timestamp': datetime.now().strftime(ts_format),
+                    'filepath': filepath,
+                    'event_code': 'T3-FLG', # Gender Flag (not neutralized)
+                    'pii_hash': text_hash,
+                    'Confidence_Score': 0.75
                 })
     
     final_texts.append(current)
