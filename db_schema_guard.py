@@ -41,7 +41,7 @@ def initialize_vault():
                 record_uuid TEXT PRIMARY KEY,
                 filepath TEXT,
                 timestamp TEXT,
-                event_type TEXT,
+                event_code TEXT,
                 pii_hash TEXT,
                 confidence_score REAL,
                 integrity_hash TEXT,
