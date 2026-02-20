@@ -80,11 +80,9 @@ def get_tier1(text, filename):
                 "label": rule["label"]
                 })
             new_logs.append({
-                'File': filename,
-                'Node': 'Tier 1 Regex',
-                'Action': 'Redact',
-                "PII_hash": text_hash,
-                'Label': label
+                'file': filename,
+                "pii_hash": text_hash,
+                'label': label
             })
 
             # perform redaction
@@ -114,13 +112,11 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
 
     for log in new_logs:
         cumulative_log.append({
-            'Timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
-            'Filepath': filepath,
-            'Event_type': 'PII_hashed',
-            'PII_hash': log['PII_hash'],
-            'Description': f"Hashed {log['Label']}",
-            'Confidence_score': 1.0,
-            'Details': "Tier1 Regex Pattern Match"
+            'timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
+            'filepath': filepath,
+            'event_code': 'T1-RGX',
+            'pii_hash': log['pii_hash'],
+            'confidence_score': 1.0,
         })
     
     tier1_out.append(json.dumps(matches))
