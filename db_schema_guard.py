@@ -73,9 +73,9 @@ def initialize_vault():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS session_summary (
                 session_uuid TEXT,
-                file_name TEXT,
-                pii_count INTEGER,
-                neutral_count INTEGER,
+                file TEXT,
+                pii_redacted INTEGER,
+                gip INTEGER,
                 trust_score REAL,
                 compliance_grade TEXT,
                 processed_at TEXT

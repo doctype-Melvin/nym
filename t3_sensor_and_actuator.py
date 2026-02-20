@@ -91,7 +91,7 @@ for index, row in input_df.iterrows():
                     'filepath': filepath,
                     'event_code': 'T3-FLG', # Gender Flag (not neutralized)
                     'pii_hash': text_hash,
-                    'Confidence_Score': 0.75
+                    'confidence_score': 0.75
                 })
     
     final_texts.append(current)

@@ -22,9 +22,9 @@ def db_commit(df):
             cursor.execute('''
                 INSERT INTO session_summary (
                            session_uuid,
-                           file_name,
-                           pii_count,
-                           neutral_count,
+                           file,
+                           pii_redacted,
+                           gip,
                            trust_score,
                            compliance_grade,
                            processed_at
@@ -33,11 +33,11 @@ def db_commit(df):
                         Values (?, ?, ?, ?, ?, ?, ?)   
                         ''', (
                             current_session_id,
-                            row["File"],
-                            int(row["PII_Redacted"]),
-                            int(row["Titles_Neutralized"]),
-                            float(row["Trust_Score"]),
-                            row["Compliance_Grade"],
+                            row["file"],
+                            int(row["pii_redacted"]),
+                            int(row["gip"]),
+                            float(row["trust_score"]),
+                            row["compliance_grade"],
                             processed_at
                         ))
             
