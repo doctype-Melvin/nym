@@ -44,7 +44,7 @@ def initialize_vault():
                 event_type TEXT,
                 pii_hash TEXT,
                 confidence_score REAL,
-                integrity_hash TEXT
+                integrity_hash TEXT,
                 FOREIGN KEY (event_code) REFERENCES event_registry(event_code)
             )
         """)
