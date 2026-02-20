@@ -54,11 +54,8 @@ def get_tier2(doc, nlp, filename, text):
                 })
             new_logs.append({
                 'File': filename,
-                'Node': 'Tier 2 spaCy DEU',
-                'Action': 'Redact',
-                'PII_hash': text_hash,
-                'Label': ent.label_,
-                'Score': conf
+                'pii_hash': text_hash,
+                'score': conf
                 })
         
             redaction_label = f"[{label}]"
@@ -106,13 +103,11 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
 
     for log in new_logs:
         cumulative_log.append({
-            'Timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
-            'Filepath': filepath,
-            'Event_type': 'PII_hashed',
-            'PII_hash': log['PII_hash'],
-            'Description': f"Hashed {log['Label']}",
-            'Confidence_score': log['Score'],
-            'Details': "NLP matching using spaCy library - model: de_core_news_lg"
+            'timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
+            'filepath': filepath,
+            'event_code': 'T2-NER',
+            'pii_hash': log['pii_hash'],
+            'confidence_score': log['score'],
         })
 
    # tier2_out.append(json.dumps(all_matches)) # this seems redundant in hash-based logic
