@@ -82,6 +82,20 @@ def initialize_vault():
             )
         """)
 
+        # View for Streamlit Highlighter
+        cursor.execute("""
+            CREATE VIEW IF NOT EXISTS ui_highlight AS 
+                SELECT
+                a.filepath,
+                a.pii_hash,
+                r.category,
+                r.event_code,
+                r.methodology,
+                a.confidence_score
+            FROM audit_trail a
+            JOIN event_registry r ON a.event_code = r.event_code
+        """)
+
         # Final Commit
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS final_commit (
@@ -93,11 +107,11 @@ def initialize_vault():
             )
         """)
 
-        # 4. Column Guards for Migration (Handling existing databases)
+        # Column Guards for Migration (Handling existing databases)
         # Check audit_trail
         cursor.execute("PRAGMA table_info(audit_trail)")
         audit_cols = [col[1] for col in cursor.fetchall()]
-        for col_name in ['pii_hash', 'details', 'integrity_hash']:
+        for col_name in ['pii_hash', 'integrity_hash']:
             if col_name not in audit_cols:
                 cursor.execute(f"ALTER TABLE audit_trail ADD COLUMN {col_name} TEXT")
 
@@ -107,7 +121,7 @@ def initialize_vault():
         if 'integrity_hash' not in pending_cols:
             cursor.execute("ALTER TABLE pending_review ADD COLUMN integrity_hash TEXT")
 
-        # 5. Seeding Logic
+        # Seeding Logic for initial job title list
         cursor.execute("SELECT COUNT(*) FROM job_dict")
         if cursor.fetchone()[0] == 0:
             if os.path.exists(csv_path):
