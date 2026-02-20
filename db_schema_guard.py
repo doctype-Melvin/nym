@@ -53,8 +53,8 @@ def initialize_vault():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS pending_review (
                 filepath TEXT PRIMARY KEY,
-                content TEXT,
-                output_final TEXT,
+                original TEXT,
+                output TEXT,
                 status TEXT DEFAULT 'PENDING',
                 integrity_hash TEXT
             )

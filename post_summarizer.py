@@ -7,54 +7,49 @@ audit_df = knio.input_tables[0].to_pandas()
 def summarize_compliance(df):
     summary = []
 
-    for filepath in df['Filepath'].unique():
-        file_events = df[df['Filepath'] == filepath]
+    for filepath in df['filepath'].unique():
+        file_events = df[df['filepath'] == filepath]
 
         # 1. ANALYZER METRIC (Tier 0)
-        layout_score = file_events[file_events['Event_type'] == 'Layout_analysis']['Confidence_score'].mean()
-        if pd.isna(layout_score): layout_score = 1
+        layout_score = file_events[file_events['event_code'] == 'T0-ANL']['confidence_score'].mean()
+        if pd.isna(layout_score): layout_score = 1.0
 
-        # 2. AI NER METRIC (Tier 2)
-        pii_events = file_events[
-            (file_events['Event_type'] == "PII_hashed") & 
-            (~file_events['Description'].str.contains('Neutralized|Gendered', na=False))
-            ]
-        t2_min = pii_events['Confidence_score'].min() if not pii_events.empty else 1.0
+        # 2. PII METRIC (T1 + T2) - Use .isin() for "OR" logic
+        pii_codes = ["T1-RGX", "T2-NER"]
+        pii_events = file_events[file_events['event_code'].isin(pii_codes)]
+        t2_min = pii_events['confidence_score'].min() if not pii_events.empty else 1.0
 
         # 3. NEUTRALIZATION METRIC (Tier 3)
-        # Even though current scores are 1.0, we include this for SLM-readiness
-        t3_events = file_events[
-            (file_events['Event_type'] == "PII_hashed") &
-            (file_events['Description'].str.contains('Neutralized|Gendered', na=False))
-            ]
-        t3_min = t3_events['Confidence_score'].min() if not t3_events.empty else 1.0
+        gip_codes = ["T3-GIP", "T3-FLG"]
+        t3_events = file_events[file_events['event_code'].isin(gip_codes)]
+        t3_min = t3_events['confidence_score'].min() if not t3_events.empty else 1.0
 
-        # 4. PESSIMISTIC MATH (The "Weakest Link" Logic)
-        # We find the absolute lowest confidence across all AI/Layout steps
+        # 4. PESSIMISTIC MATH
+        # We take the lowest confidence found in the entire document pipeline
         weakest_link = min(layout_score, t2_min, t3_min)
         
-        # Weighted formula: Heavily penalize the weakest link
+        # Weighted formula: Heavily penalize the weakest link (The "Chain" logic)
+        # If any PII was missed or uncertain, the trust score drops sharply.
         trust_score = (weakest_link * 0.8) + (t2_min * 0.2)
 
         # 5. DYNAMIC COMPLIANCE STATUS
-        # threshold 0.83 as per your previous requirement
         status = "PASS" if trust_score > 0.85 else "REVIEW_REQUIRED"
 
         # 6. PRODUCTIVITY COUNTS
         pii_count = len(pii_events)
         neutral_count = len(t3_events)
 
-        # Handle filepath strings for different OS (Windows/Linux)
+        # Handle filepath strings
         display_name = filepath.split('\\')[-1].split('/')[-1]
 
         summary.append({
-            'File': display_name,
-            'PII_Redacted': pii_count,
-            'Titles_Neutralized': neutral_count,
-            'Layout_Quality': f"{layout_score * 100:.0f}%",
-            'AI_Certainty': f"{t2_min * 100:.1f}%",
-            'Trust_Score': round(trust_score, 4),
-            'Compliance_Grade': status
+            'file': display_name,
+            'pii_redacted': pii_count,
+            'gip': neutral_count,
+            'layout_quality': f"{layout_score * 100:.0f}%",
+            'ai_certainty': f"{t2_min * 100:.1f}%",
+            'trust_score': round(trust_score, 4),
+            'compliance_grade': status
         })
 
     return pd.DataFrame(summary)
