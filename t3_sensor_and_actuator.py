@@ -6,6 +6,11 @@ import sqlite3
 import unicodedata
 import hashlib
 from datetime import datetime
+import os
+from dotenv import load_dotenv
+
+load_dotenv('./')
+db_path = os.getenv('DB_PATH', "../complyable_app/data/vault/complyable_vault.db")
 
 # --- CONFIG ---
 nlp = spacy.load("de_core_news_lg")
@@ -22,7 +27,6 @@ def is_person_related(token):
     return text.endswith(person_suffixes) or token.ent_type_ == "PER"
 
 # --- DB DATA ---
-db_path = "../complyable_app/data/vault/complyable_vault.db" 
 conn = sqlite3.connect(db_path)
 job_table = pd.read_sql_query("SELECT original, neutral FROM job_dict", conn)
 conn.close()

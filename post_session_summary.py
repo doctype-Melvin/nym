@@ -3,12 +3,14 @@ import pandas as pd
 import knime.scripting.io as knio
 from datetime import datetime
 import uuid
+import os
+from dotenv import load_dotenv
+
+load_dotenv('./')
+db_path = os.getenv('DB_PATH', "../complyable_app/data/vault/complyable_vault.db")
 
 # Commit session summary
 summary_results = knio.input_tables[0].to_pandas()
-
-db_path="../complyable_app/data/vault/complyable_vault.db"
-
 
 def db_commit(df):
     try: 

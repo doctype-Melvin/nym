@@ -3,10 +3,14 @@ import pandas as pd
 import knime.scripting.io as knio
 import uuid
 import hashlib
+import os
+from dotenv import load_dotenv
+
+load_dotenv('./')
+db_path = os.getenv('DB_PATH', "../complyable_app/data/vault/complyable_vault.db")
 
 # cumulative_log dataframe
 log_df = knio.input_tables[0].to_pandas()
-db_path="../complyable_app/data/vault/complyable_vault.db"
 
 def archive_audit_trail(df):
     connect = sqlite3.connect(db_path)

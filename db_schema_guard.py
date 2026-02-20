@@ -3,10 +3,13 @@ import pandas as pd
 import knime.scripting.io as knio
 from datetime import datetime
 import os
+from dotenv import load_dotenv
+
+load_dotenv('./')
 
 # Define the DB Path
-db_path = "../complyable_app/data/vault/complyable_vault.db"
-csv_path = "../complyable_app/data/refs/dict_seed.csv"
+db_path = os.getenv('DB_PATH', "../complyable_app/data/vault/complyable_vault.db")
+csv_path = os.getenv('CSV_PATH', "../complyable_app/data/refs/dict_seed.csv")
 os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
 def initialize_vault():
