@@ -61,13 +61,11 @@ for _, row in input_df.iterrows():
 
     # Processing Log
     audit_log.append({
-        'Timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
-        'Filepath': path,
-        'Event_type': 'Layout Analyzer',
-        'PII_hash': None,
-        'Description': None,
-        'Confidence_score': 1.0,
-        'Details': "Layout analysis"            
+        'timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
+        'filepath': path,
+        'event_code': 'T0-ANL',
+        'pii_hash': None,
+        'confidence_score': 1.0,
     })
 
 # Output to KNIME
