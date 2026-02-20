@@ -12,8 +12,30 @@ os.makedirs(os.path.dirname(db_path), exist_ok=True)
 def initialize_vault():
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
+
+        # Event Registry table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS event_registry (
+                event_code TEXT PRIMARY KEY,
+                category TEXT, 
+                source_tier TEXT,
+                methodology TEXT,
+                legal_basis TEXT
+            )
+        """)
+        # Registry events
+        events = [
+            ('T0-ANL', 'System', 'Tier 0', 'Tika Parser Metadata Analysis', 'System Integrity'),
+            ('T1-RGX', 'Privacy', 'Tier 1', 'Deterministic REGEX Matching', 'GDPR / DSGVO'),
+            ('T2-NER', 'Privacy', 'Tier 2', 'Probabilistic Named Entitiy Recognition', 'GDPR / DSVGO'),
+            ('T3-GIP', 'Inclusion', 'Tier 3', 'Linguistic Gender Neutralization', 'AGG / EU AI Act'),
+            ('T3-FLG', 'Inclusion', 'Tier 3', 'Morphological Gender Flagging', 'EU AI Act / D&I')
+        ]
+        # Populate Event Registry table 
+        cursor.executemany("INSERT OR IGNORE INTO event_registry VALUES (?, ?, ?, ?, ?)", events)
         
-        # 1. Audit Trail: Added 'details' and 'integrity_hash' to match your writer script
+        # Audit Trail
+        # References Event Registry table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS audit_trail (
                 record_uuid TEXT PRIMARY KEY,
@@ -21,14 +43,13 @@ def initialize_vault():
                 timestamp TEXT,
                 event_type TEXT,
                 pii_hash TEXT,
-                description TEXT,
                 confidence_score REAL,
-                details TEXT,
                 integrity_hash TEXT
+                FOREIGN KEY (event_code) REFERENCES event_registry(event_code)
             )
         """)
 
-        # 2. Pending Review (Harmonized)
+        # Pending Review (Harmonized)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS pending_review (
                 filepath TEXT PRIMARY KEY,
@@ -39,7 +60,7 @@ def initialize_vault():
             )
         """)
 
-        # 3. Job Dictionary: Ensure columns are 'original' and 'neutral' for Tier 3
+        # Job Dictionary: Ensure columns are 'original' and 'neutral' for Tier 3
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS job_dict (
                 original TEXT PRIMARY KEY,
