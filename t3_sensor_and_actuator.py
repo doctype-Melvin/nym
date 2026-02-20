@@ -40,7 +40,7 @@ final_texts = []
 ts_format = '%d.%m.%Y %H:%M:%S'
 
 for index, row in input_df.iterrows():
-    current = str(row['Content'])
+    current = str(row['Output'])
     filepath = row['Filepath']
     
     # 1. Patterns (Your v1 logic)
@@ -98,6 +98,6 @@ for index, row in input_df.iterrows():
 
 # --- OUTPUT ---
 output_df = input_df.copy()
-output_df["Output_final"] = final_texts
+output_df["Output"] = final_texts
 knio.output_tables[0] = knio.Table.from_pandas(output_df)
 knio.output_tables[1] = knio.Table.from_pandas(pd.DataFrame(cumulative_log))

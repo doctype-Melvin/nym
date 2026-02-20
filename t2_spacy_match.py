@@ -93,7 +93,7 @@ except:
     cumulative_log = []
 
 # Loop over all provided filepaths in dir
-for content, filepath in zip(input_df['Content'], input_df['Filepath']):
+for content, filepath in zip(input_df['Output'], input_df['Filepath']):
 
     doc = nlp(content)
 
@@ -113,7 +113,7 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
    # tier2_out.append(json.dumps(all_matches)) # this seems redundant in hash-based logic
 
 output_df = input_df.copy()
-output_df['Content'] = tier2_out
+output_df['Output'] = tier2_out
 
 cumulative_log = pd.DataFrame(cumulative_log)
 

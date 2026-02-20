@@ -94,7 +94,7 @@ def get_tier1(text, filename):
 
 # KNIME instructions
 input_df = knio.input_tables[0].to_pandas()
-tier1_out = [] # this might be redundant - no need to pass the list of matches
+original_in = []
 normalized_contents = []
 
 try: 
@@ -108,6 +108,7 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
     matches, new_logs, clean_text = get_tier1(content, filepath)
 
     normalized_contents.append(clean_text)
+    original_in.append(content)
 
 
     for log in new_logs:
@@ -119,12 +120,10 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
             'confidence_score': 1.0,
         })
     
-    tier1_out.append(json.dumps(matches))
-
 knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Filepath": input_df['Filepath'],
-    "Content": normalized_contents,
-    "Tier1_matches": tier1_out,
+    "Original": original_in,
+    "Output": normalized_contents,
     }))
 
 knio.output_tables[1] = knio.Table.from_pandas(pd.DataFrame(cumulative_log))
