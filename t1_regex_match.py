@@ -63,6 +63,7 @@ def to_titlecase(text):
 # --- TIER 1 REGEX matching & redacting logic ---
 def get_tier1(text, filename):
     text = to_titlecase(unicodedata.normalize('NFC', text))
+    markdown = text
     all_matches = []
     new_logs = []
 
@@ -90,12 +91,13 @@ def get_tier1(text, filename):
             #text = re.sub(rf'\b{re.escape(match)}\b', redaction_label, text)
             text = text.replace(match, redaction_label)
 
-    return all_matches, new_logs, text
+    return all_matches, new_logs, text, markdown
 
 # KNIME instructions
 input_df = knio.input_tables[0].to_pandas()
 original_in = []
 normalized_contents = []
+markdown_pass = []
 
 try: 
     cumulative_log = knio.input_tables[1].to_pandas().to_dict('records')
@@ -105,10 +107,11 @@ except:
 # Loop over all provided filepaths in dir
 for content, filepath in zip(input_df['Content'], input_df['Filepath']):
     
-    matches, new_logs, clean_text = get_tier1(content, filepath)
+    matches, new_logs, clean_text, markdown = get_tier1(content, filepath)
 
     normalized_contents.append(clean_text)
     original_in.append(content)
+    markdown_pass.append(markdown)
 
 
     for log in new_logs:
@@ -123,7 +126,8 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
 knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({
     "Filepath": input_df['Filepath'],
     "Original": original_in,
-    "Output": normalized_contents,
+    "Markdown": markdown_pass,
+    "Output": normalized_contents
     }))
 
 knio.output_tables[1] = knio.Table.from_pandas(pd.DataFrame(cumulative_log))

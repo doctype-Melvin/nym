@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import html
 import hashlib
+import re
 
 # 1. SETUP & PATHS
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,29 +25,61 @@ def toggle_pii(word_hash):
     else:
         st.session_state.revoked_hashes.add(word_hash)
 
-def get_interactive_tokens(text, highlighter_df):
-    detected_map = dict(zip(highlighter_df['pii_hash'], highlighter_df['category']))
-    tokens = []
-    if not text: return []
+def apply_overlay(markdown_text, highlighter_df, revoked_hashes):
+    """
+    Wraps detected PII in the raw markdown with HTML spans 
+    without breaking the markdown structure.
+    """
+    if not markdown_text:
+        return ""
     
-    for word in text.split():
+    # Start with a safe version of the text
+    processed_text = html.escape(markdown_text)
+    
+    # Check every unique word in the document
+    unique_words = set(markdown_text.split())
+    
+    for word in unique_words:
         clean_word = word.strip('.,!?;:()')
         h = hashlib.sha256(clean_word.encode()).hexdigest()
-        if h in detected_map:
-            tokens.append({"word": word, "hash": h, "is_pii": True, "category": detected_map[h]})
-        else:
-            tokens.append({"word": word, "is_pii": False})
-    return tokens
+        
+        # Match against our database of detected PII
+        match = highlighter_df[highlighter_df['pii_hash'] == h]
+        
+        if not match.empty:
+            category = match['category'].values[0]
+            is_revoked = h in revoked_hashes
+            
+            # Styling for the "Glass Box"
+            if is_revoked:
+                style = "background-color: #e0e0e0; text-decoration: line-through; color: #888; border-radius: 3px;"
+            else:
+                color = "#ffcdd2" if category == 'Privacy' else "#fff9c4"
+                style = f"background-color: {color}; border-radius: 3px; padding: 0 2px; font-weight: 500;"
+            
+            # Create the HTML Span
+            # Note: We'll add the 'click' logic in the next step
+            span = f'<span style="{style}" title="{category}">{html.escape(word)}</span>'
+            
+            # Use Regex to replace only whole words (\b)
+            # This ensures 'Schmidt' is caught but not 'Schmidt' inside 'Schmidt-Group'
+            pattern = rf'\b{re.escape(html.escape(word))}\b'
+            processed_text = re.sub(pattern, span, processed_text)
+
+    # Convert escaped Markdown structural elements back so Streamlit can render them
+    # This allows ##, *, and line breaks to work again
+    processed_text = processed_text.replace("&gt;", ">").replace("&lt;", "<").replace("\n", "<br>")
+    return processed_text
 
 def get_detected_data(filepath):
     with sqlite3.connect(DB_PATH) as conn:
 
-        query = "SELECT pii_hash, category, event_code FROM ui_highlighter WHERE filepath = ?"
+        query = "SELECT pii_hash, category, event_code FROM ui_highlight WHERE filepath = ?"
         return pd.read_sql(query, conn, params=(filepath,))
 
 def get_pending_data():
     with sqlite3.connect(DB_PATH) as conn:
-        query = "SELECT filepath, content, output_final, status FROM pending_review WHERE status = 'PENDING'"
+        query = "SELECT filepath, original, markdown, output, status FROM pending_review WHERE status = 'PENDING'"
         return pd.read_sql(query, conn)
     
 def generate_live_redaction(text, highlighter_df, revoked_hashes):
@@ -108,33 +141,27 @@ else:
 
     with col1: 
         st.subheader("🔍 Glass Box Review")
-        st.caption("Click a highlighted word to revoke the redaction.")
         
-        tokens = get_interactive_tokens(row['content'], highlighter_df)
+        # Generate the beautiful, structure-preserved markup
+        markup = apply_overlay(
+            row['markdown'], 
+            highlighter_df, 
+            st.session_state.revoked_hashes
+        )
         
-        # Rendering tokens as a flow
-        for i, t in enumerate(tokens):
-            if t.get('is_pii'):
-                h = t['hash']
-                is_revoked = h in st.session_state.revoked_hashes
-                
-                # Use Streamlit's help tooltip to show category
-                btn_label = t['word']
-                if is_revoked:
-                    btn_label = f"~~{t['word']}~~" # Markdown strikethrough (if supported in btn)
-                
-                if st.button(btn_label, key=f"token_{i}_{h}", help=f"Type: {t['category']}"):
-                    toggle_pii(h)
-                    st.rerun()
-            else:
-                st.write(f"{t['word']}", end=" ")
+        # Render the whole thing as one block
+        # white-space: pre-wrap; is the key to keeping your manual line breaks!
+        st.markdown(
+            f'<div style="font-family: sans-serif; white-space: pre-wrap; line-height: 1.6;">{markup}</div>', 
+            unsafe_allow_html=True
+        )
 
     with col2:
         st.subheader("🛡️ Live Redaction Preview")
         
         # Generate the text based on your toggles in Col 1
         live_redacted_text = generate_live_redaction(
-            row['content'], 
+            row['markdown'], 
             highlighter_df, 
             st.session_state.revoked_hashes
         )
@@ -163,7 +190,7 @@ else:
                 # 2. Update the pending_review table
                 cursor.execute("""
                     UPDATE pending_review 
-                    SET output_final = ?, status = 'CLEAN' 
+                    SET output = ?, status = 'CLEAN' 
                     WHERE filepath = ?
                 """, (live_redacted_text, selected_file))
                 

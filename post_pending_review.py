@@ -19,9 +19,9 @@ for _, row in data.iterrows():
 
     cursor.execute("""
         INSERT OR REPLACE INTO pending_review 
-        (filepath, original, output, status, integrity_hash)
-        VALUES (?, ?, ?, ?, ?)
-    """, (row['Filepath'], row['Original'], row['Output'], 'PENDING', i_hash))
+        (filepath, original, markdown, output, status, integrity_hash)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (row['Filepath'], row['Original'], row['Markdown'], row['Output'], 'PENDING', i_hash))
     
 connect.commit()
 connect.close()

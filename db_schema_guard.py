@@ -57,6 +57,7 @@ def initialize_vault():
             CREATE TABLE IF NOT EXISTS pending_review (
                 filepath TEXT PRIMARY KEY,
                 original TEXT,
+                markdown TEXT,
                 output TEXT,
                 status TEXT DEFAULT 'PENDING',
                 integrity_hash TEXT
