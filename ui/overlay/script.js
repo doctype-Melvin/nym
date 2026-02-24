@@ -28,17 +28,25 @@ window.addEventListener("message", (event) => {
 
             renderer.text = (token) => {
                 let content = (typeof token === 'object') ? token.text : token;
-                if (typeof content !== 'string') return content;
+                if (typeof content !== 'string' || !pii_map) return content;
 
-                return content.split(/(\b\w+\b)/g).map(part => {
-                    const category = pii_map ? pii_map[part] : null;
-                    if (category) {
-                        const isRevoked = sessionState.revokedHashes.includes(part); 
-                        const styleClass = isRevoked ? 'pii-revoked' : `pii-${category.toLowerCase()}`;
-                        return `<span class="pii-tag ${styleClass}" onclick="togglePII('${part}')">${part}</span>`;
-                    }
-                    return part;
-                }).join('');
+                const sortedPII = Object.keys(pii_map).sort((a,b) => b.length - a.length)
+
+                if (sortedPII.length === 0) return content
+
+                const escapedPII = sortedPII.map(str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+                const regex = new RegExp(`(${escapedPII.join('|')})`, 'g')
+
+            return content.replace(regex, (match) => {
+                const category = pii_map[match];
+                
+                // Check if this word/phrase is in the exclusions list sent by Python
+                const isExcluded = user_exclusions && user_exclusions.includes(match);
+                
+                const styleClass = isExcluded ? 'pii-excluded' : `pii-${category.toLowerCase()}`;
+                
+                return `<span class="pii-tag ${styleClass}" onclick="togglePII('${match}')">${match}</span>`;
+                });
             };
 
             marked.setOptions({
@@ -57,9 +65,24 @@ window.addEventListener("message", (event) => {
 
 function togglePII(word) {
     sendToStreamlit("streamlit:setComponentValue", { 
-        value: { action: "toggle", word: word } 
+        value: { action: "toggle", word: word, click_id: Date.now() } 
     });
 }
+
+document.addEventListener('mouseup', () => {
+    const selection = window.getSelection().toString().trim()
+
+    if (selection && selection.length > 0 && selection.length < 100) {
+        sendToStreamlit("streamlit:setComponentValue", {
+            value: {
+                action: "manual_mark",
+                word: selection,
+                click_id: Date.now()
+            }
+        })
+    }
+    window.getSelection().removeAllRanges()
+})
 
 // Handshake
 sendToStreamlit("streamlit:componentReady", { apiVersion: 1 });

@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 from pathlib import Path
+from datetime import datetime
 import sys
 import html
 import hashlib
@@ -37,44 +38,7 @@ def toggle_pii(word_hash):
     else:
         st.session_state.user_exclusions.add(word_hash)
 
-# def apply_overlay(markdown_text, highlighter_df):
-#     if not markdown_text or highlighter_df.empty:
-#         return {}
 
-#     pii_lookup = {}
-#     # Use regex to find all words to ensure we match what the JS will see
-#     unique_words = set(re.findall(r'\b\w+\b', markdown_text))
-    
-#     for word in unique_words:
-#         # Match the Python hashing logic used in your pipeline
-#         h = hashlib.sha256(word.encode()).hexdigest()
-#         match = highlighter_df[highlighter_df['pii_hash'] == h]
-        
-#         if not match.empty:
-#             # We send the category so JS knows which color to use
-#             pii_lookup[word] = match['category'].values[0]
-            
-#     return pii_lookup
-
-# --- updated apply_overlay 02/24
-# def apply_overlay(text, highlighter_df, user_exclusion_hashes):
-#     pii_map = {}
-#     user_exclusions_text = []
-
-#     hash_lookup = dict(zip(highlighter_df['pii_hash'], highlighter_df['event_code']))
-#     words = text.split()
-
-#     for word in set(words):
-#         clean_word = word.strip('.,!?;:()[]"\'')
-#         word_hash = hashlib.sha256(word.encode()).hexdigest()
-#         if word_hash in hash_lookup:
-#             category = hash_lookup[word_hash]
-#             pii_map[clean_word] = category
-
-#             if word_hash in user_exclusion_hashes:
-#                 user_exclusions_text.append(clean_word)
-    
-#     return pii_map, user_exclusions_text
 def apply_overlay(text, highlighter_df, user_exclusion_hashes):
     pii_map = {}
     user_exclusions_text = []
@@ -84,7 +48,7 @@ def apply_overlay(text, highlighter_df, user_exclusion_hashes):
     # To find "Max Mustermann" from a list of hashes, we'd technically need 
     # to hash every possible n-gram (1-word, 2-word, 3-word combinations).
     
-    # QUICK FIX: We iterate through the document and try to match 
+    # We iterate through the document and try to match 
     # based on common PII lengths (1 to 3 words).
     words = text.split()
     
@@ -148,6 +112,49 @@ def generate_live_redaction(text, highlighter_df, user_exclusions):
 
     return " ".join(final_output)
 
+def save_manual_redaction_mock(filepath, word_to_hash, category="MANUAL"):
+    """
+    Prints the payload for verification without touching the DB.
+    """
+    pii_hash = hashlib.sha256(word_to_hash.encode()).hexdigest()
+    
+    # Mock database payload
+    payload = {
+        "filepath": filepath,
+        "pii_hash": pii_hash,
+        "category": category,
+        "event_code": "MANUAL_01",
+        "timestamp": "2026-02-24 15:00:00" # Placeholder
+    }
+    
+    print("--- DB WRITE SIMULATION ---")
+    print(f"Captured Word: '{word_to_hash}'")
+    print(f"Payload to SQL: {payload}")
+    print("---------------------------")
+
+def save_manual_redaction_live(filepath, word_to_hash, category="MANUAL"):
+    """
+    Persists the manual redaction hash to the SQLite audit trail.
+    """
+    pii_hash = hashlib.sha256(word_to_hash.encode()).hexdigest()
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            # We use INSERT OR IGNORE to prevent duplicate hashes for the same file
+            query = """
+                INSERT OR IGNORE INTO ui_highlight 
+                (filepath, pii_hash, category, event_code, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """
+            cursor.execute(query, (filepath, pii_hash, category, "MANUAL_01", ts))
+            conn.commit()
+            return True
+    except Exception as e:
+        print(f"Database Error: {e}")
+        return False
+
 # 4. STYLING
 st.markdown("""
     <style>
@@ -191,16 +198,36 @@ else:
         height=700
     )
 
-    if js_response and js_response.get("action") == "toggle":
-        word_to_toggle = js_response.get("word")
-        h = hashlib.sha256(word_to_toggle.encode()).hexdigest()
+    if "last_processed_action" not in st.session_state:
+        st.session_state.last_processed_action = None
 
-        if h in st.session_state.user_exclusions:
-            st.session_state.user_exclusions.remove(h)
-        else:
-            st.session_state.user_exclusions.add(h)
-        st.rerun()
+    # Toggle Action
+    if js_response and js_response.get("action") == "toggle":
+        current_action_id = js_response.get('click_id')
+        if st.session_state.last_processed_action != current_action_id:
+            word_to_toggle = js_response.get("word")
+            h = hashlib.sha256(word_to_toggle.encode()).hexdigest()
+
+            if h in st.session_state.user_exclusions:
+                st.session_state.user_exclusions.remove(h)
+            else:
+                st.session_state.user_exclusions.add(h)
+            st.session_state.last_processed_action = current_action_id
+            st.rerun()
     
+    # Manual Tag Action
+    if js_response and js_response.get("action") == "manual_mark":
+        current_action_id = js_response.get("click_id")
+
+        if st.session_state.last_processed_action != current_action_id:
+            new_pii = js_response.get("word")
+            new_hash = hashlib.sha256(new_pii.encode()).hexdigest()
+
+            save_manual_redaction_mock(selected_file, new_pii)
+
+            st.session_state.last_processed_action = current_action_id
+            st.rerun()
+
     with st.expander ("🛡️ Live Redaction Preview"):
         
         # Generate the text based on your toggles in Col 1
