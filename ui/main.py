@@ -27,15 +27,15 @@ if not COMP_PATH.exists():
 st.set_page_config(page_title="Complyable | Compliance Review", layout="wide")
 
 # 2. SESSION STATE
-if 'revoked_hashes' not in st.session_state:
-    st.session_state.revoked_hashes = set()
+if 'user_exclusions' not in st.session_state:
+    st.session_state.user_exclusions = set()
 
 # 3. LOGIC FUNCTIONS
 def toggle_pii(word_hash):
-    if word_hash in st.session_state.revoked_hashes:
-        st.session_state.revoked_hashes.remove(word_hash)
+    if word_hash in st.session_state.user_exclusions:
+        st.session_state.user_exclusions.remove(word_hash)
     else:
-        st.session_state.revoked_hashes.add(word_hash)
+        st.session_state.user_exclusions.add(word_hash)
 
 def apply_overlay(markdown_text, highlighter_df):
     if not markdown_text or highlighter_df.empty:
@@ -67,7 +67,7 @@ def get_pending_data():
         query = "SELECT filepath, original, markdown, output, status FROM pending_review WHERE status = 'PENDING'"
         return pd.read_sql(query, conn)
     
-def generate_live_redaction(text, highlighter_df, revoked_hashes):
+def generate_live_redaction(text, highlighter_df, user_exclusions):
     """
     Produces the final redacted string based on current user decisions
     """
@@ -76,7 +76,7 @@ def generate_live_redaction(text, highlighter_df, revoked_hashes):
     
     # Create a lookup for what SHOULD be redacted
     # Only include hashes that are NOT in the revoked set
-    active_redactions = highlighter_df[~highlighter_df['pii_hash'].isin(revoked_hashes)]
+    active_redactions = highlighter_df[~highlighter_df['pii_hash'].isin(user_exclusions)]
     redact_lookup = dict(zip(active_redactions['pii_hash'], active_redactions['event_code']))
 
     words = text.split()
@@ -122,47 +122,45 @@ else:
     row = df_pending[df_pending['filepath'] == selected_file].iloc[0]
     highlighter_df = get_detected_data(selected_file)
 
-    col1, col2 = st.columns(2)
+    st.subheader("🔍 Highlight Review")
+    
+    pii_map = apply_overlay(
+        row['markdown'], 
+        highlighter_df
+    )
 
-    with col1: 
-        st.subheader("🔍 Highlight Review")
-        
-        pii_map = apply_overlay(
-            row['markdown'], 
-            highlighter_df
-        )
+    js_response = overlayer(
+        markdown=row['markdown'],
+        pii_map=pii_map,
+        user_exclusions=list(st.session_state.user_exclusions),
+        key=f"ov_{selected_file}",
+        height=700
+    )
 
-        js_response = overlayer(
-            markdown=row['markdown'],
-            pii_map=pii_map,
-            revoked_hashes=list(st.session_state.revoked_hashes),
-            key=f"ov_{selected_file}"
-        )
+    if js_response and js_response.get("action") == "toggle":
+        word_to_toggle = js_response.get("word")
+        h = hashlib.sha256(word_to_toggle.encode()).hexdigest()
 
-        if js_response and js_response.get("action") == "toggle":
-            word_to_toggle = js_response.get("word")
-            h = hashlib.sha256(word_to_toggle.encode()).hexdigest()
-
-            if h in st.session_state.revoked_hashes:
-                st.session_state.revoked_hashes.remove(h)
-            else:
-                st.session_state.revoked_hashes.add(h)
-            st.rerun()
-        
-    with col2:
-        st.subheader("🛡️ Live Redaction Preview")
+        if h in st.session_state.user_exclusions:
+            st.session_state.user_exclusions.remove(h)
+        else:
+            st.session_state.user_exclusions.add(h)
+        st.rerun()
+    
+    with st.expander ("🛡️ Live Redaction Preview"):
         
         # Generate the text based on your toggles in Col 1
         live_redacted_text = generate_live_redaction(
             row['markdown'], 
             highlighter_df, 
-            st.session_state.revoked_hashes
+            st.session_state.user_exclusions
         )
         
         # Show the result in the editor
-        st.text_area("Finalized Output", value=live_redacted_text, height=600, key="live_editor")
+        st.text_area("Finalized Output", value=live_redacted_text, height=500, key="live_editor")
 
     st.divider()
+
     c1, c2 = st.columns([1, 5])
     with c1:
         if st.button("Approve & Sign", type="primary"):
@@ -188,7 +186,7 @@ else:
                 """, (live_redacted_text, selected_file))
                 
                 # 3. Log every 'Revoke' decision made during this session
-                for h in st.session_state.revoked_hashes:
+                for h in st.session_state.user_exclusions:
                     cursor.execute("""
                         INSERT INTO manual_overrides (filepath, pii_hash, decision)
                         VALUES (?, ?, 'REVOKED')
@@ -196,7 +194,7 @@ else:
                 
                 conn.commit()
             
-            st.session_state.revoked_hashes = set()
+            st.session_state.user_exclusions = set()
             
             st.success(f"Document {selected_file} signed and moved to Audit Trail.")
             st.balloons()
