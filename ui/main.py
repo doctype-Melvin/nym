@@ -6,11 +6,23 @@ import sys
 import html
 import hashlib
 import re
+import streamlit.components.v1 as components
 
 # 1. SETUP & PATHS
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
 DB_PATH = BASE_DIR / "data" / "vault" / "complyable_vault.db"
+
+# -- Overlay component
+CURRENT_DIR = Path(__file__).parent.absolute()
+COMP_PATH = CURRENT_DIR / "overlay"
+
+overlayer = components.declare_component(
+        "overlayer",
+        path=str(COMP_PATH)
+    )
+if not COMP_PATH.exists():
+    st.error(f"Component folder not found at: {COMP_PATH}")
 
 st.set_page_config(page_title="Complyable | Compliance Review", layout="wide")
 
@@ -25,51 +37,24 @@ def toggle_pii(word_hash):
     else:
         st.session_state.revoked_hashes.add(word_hash)
 
-def apply_overlay(markdown_text, highlighter_df, revoked_hashes):
-    """
-    Wraps detected PII in the raw markdown with HTML spans 
-    without breaking the markdown structure.
-    """
-    if not markdown_text:
-        return ""
-    
-    # Start with a safe version of the text
-    processed_text = html.escape(markdown_text)
-    
-    # Check every unique word in the document
-    unique_words = set(markdown_text.split())
+def apply_overlay(markdown_text, highlighter_df):
+    if not markdown_text or highlighter_df.empty:
+        return {}
+
+    pii_lookup = {}
+    # Use regex to find all words to ensure we match what the JS will see
+    unique_words = set(re.findall(r'\b\w+\b', markdown_text))
     
     for word in unique_words:
-        clean_word = word.strip('.,!?;:()')
-        h = hashlib.sha256(clean_word.encode()).hexdigest()
-        
-        # Match against our database of detected PII
+        # Match the Python hashing logic used in your pipeline
+        h = hashlib.sha256(word.encode()).hexdigest()
         match = highlighter_df[highlighter_df['pii_hash'] == h]
         
         if not match.empty:
-            category = match['category'].values[0]
-            is_revoked = h in revoked_hashes
+            # We send the category so JS knows which color to use
+            pii_lookup[word] = match['category'].values[0]
             
-            # Styling for the "Glass Box"
-            if is_revoked:
-                style = "background-color: #e0e0e0; text-decoration: line-through; color: #888; border-radius: 3px;"
-            else:
-                color = "#ffcdd2" if category == 'Privacy' else "#fff9c4"
-                style = f"background-color: {color}; border-radius: 3px; padding: 0 2px; font-weight: 500;"
-            
-            # Create the HTML Span
-            # Note: We'll add the 'click' logic in the next step
-            span = f'<span style="{style}" title="{category}">{html.escape(word)}</span>'
-            
-            # Use Regex to replace only whole words (\b)
-            # This ensures 'Schmidt' is caught but not 'Schmidt' inside 'Schmidt-Group'
-            pattern = rf'\b{re.escape(html.escape(word))}\b'
-            processed_text = re.sub(pattern, span, processed_text)
-
-    # Convert escaped Markdown structural elements back so Streamlit can render them
-    # This allows ##, *, and line breaks to work again
-    processed_text = processed_text.replace("&gt;", ">").replace("&lt;", "<").replace("\n", "<br>")
-    return processed_text
+    return pii_lookup
 
 def get_detected_data(filepath):
     with sqlite3.connect(DB_PATH) as conn:
@@ -140,22 +125,30 @@ else:
     col1, col2 = st.columns(2)
 
     with col1: 
-        st.subheader("🔍 Glass Box Review")
+        st.subheader("🔍 Highlight Review")
         
-        # Generate the beautiful, structure-preserved markup
-        markup = apply_overlay(
+        pii_map = apply_overlay(
             row['markdown'], 
-            highlighter_df, 
-            st.session_state.revoked_hashes
-        )
-        
-        # Render the whole thing as one block
-        # white-space: pre-wrap; is the key to keeping your manual line breaks!
-        st.markdown(
-            f'<div style="font-family: sans-serif; white-space: pre-wrap; line-height: 1.6;">{markup}</div>', 
-            unsafe_allow_html=True
+            highlighter_df
         )
 
+        js_response = overlayer(
+            markdown=row['markdown'],
+            pii_map=pii_map,
+            revoked_hashes=list(st.session_state.revoked_hashes),
+            key=f"ov_{selected_file}"
+        )
+
+        if js_response and js_response.get("action") == "toggle":
+            word_to_toggle = js_response.get("word")
+            h = hashlib.sha256(word_to_toggle.encode()).hexdigest()
+
+            if h in st.session_state.revoked_hashes:
+                st.session_state.revoked_hashes.remove(h)
+            else:
+                st.session_state.revoked_hashes.add(h)
+            st.rerun()
+        
     with col2:
         st.subheader("🛡️ Live Redaction Preview")
         
