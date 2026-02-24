@@ -37,24 +37,77 @@ def toggle_pii(word_hash):
     else:
         st.session_state.user_exclusions.add(word_hash)
 
-def apply_overlay(markdown_text, highlighter_df):
-    if not markdown_text or highlighter_df.empty:
-        return {}
+# def apply_overlay(markdown_text, highlighter_df):
+#     if not markdown_text or highlighter_df.empty:
+#         return {}
 
-    pii_lookup = {}
-    # Use regex to find all words to ensure we match what the JS will see
-    unique_words = set(re.findall(r'\b\w+\b', markdown_text))
+#     pii_lookup = {}
+#     # Use regex to find all words to ensure we match what the JS will see
+#     unique_words = set(re.findall(r'\b\w+\b', markdown_text))
     
-    for word in unique_words:
-        # Match the Python hashing logic used in your pipeline
-        h = hashlib.sha256(word.encode()).hexdigest()
-        match = highlighter_df[highlighter_df['pii_hash'] == h]
+#     for word in unique_words:
+#         # Match the Python hashing logic used in your pipeline
+#         h = hashlib.sha256(word.encode()).hexdigest()
+#         match = highlighter_df[highlighter_df['pii_hash'] == h]
         
-        if not match.empty:
-            # We send the category so JS knows which color to use
-            pii_lookup[word] = match['category'].values[0]
+#         if not match.empty:
+#             # We send the category so JS knows which color to use
+#             pii_lookup[word] = match['category'].values[0]
             
-    return pii_lookup
+#     return pii_lookup
+
+# --- updated apply_overlay 02/24
+# def apply_overlay(text, highlighter_df, user_exclusion_hashes):
+#     pii_map = {}
+#     user_exclusions_text = []
+
+#     hash_lookup = dict(zip(highlighter_df['pii_hash'], highlighter_df['event_code']))
+#     words = text.split()
+
+#     for word in set(words):
+#         clean_word = word.strip('.,!?;:()[]"\'')
+#         word_hash = hashlib.sha256(word.encode()).hexdigest()
+#         if word_hash in hash_lookup:
+#             category = hash_lookup[word_hash]
+#             pii_map[clean_word] = category
+
+#             if word_hash in user_exclusion_hashes:
+#                 user_exclusions_text.append(clean_word)
+    
+#     return pii_map, user_exclusions_text
+def apply_overlay(text, highlighter_df, user_exclusion_hashes):
+    pii_map = {}
+    user_exclusions_text = []
+    
+    # 1. We still need a way to check phrases. 
+    # For now, let's assume the recruiter's document text is the primary source.
+    # To find "Max Mustermann" from a list of hashes, we'd technically need 
+    # to hash every possible n-gram (1-word, 2-word, 3-word combinations).
+    
+    # QUICK FIX: We iterate through the document and try to match 
+    # based on common PII lengths (1 to 3 words).
+    words = text.split()
+    
+    for i in range(len(words)):
+        # Try 1-word, 2-word, and 3-word combinations
+        for n in range(1, 4): 
+            if i + n > len(words):
+                break
+            
+            phrase = " ".join(words[i:i+n]).strip('.,!?;:()[]"\'')
+            phrase_hash = hashlib.sha256(phrase.encode()).hexdigest()
+            
+            # Check against our DB results
+            match = highlighter_df[highlighter_df['pii_hash'] == phrase_hash]
+            
+            if not match.empty:
+                category = match.iloc[0]['category']
+                pii_map[phrase] = category
+                
+                if phrase_hash in user_exclusion_hashes:
+                    user_exclusions_text.append(phrase)
+    
+    return pii_map, user_exclusions_text
 
 def get_detected_data(filepath):
     with sqlite3.connect(DB_PATH) as conn:
@@ -124,15 +177,16 @@ else:
 
     st.subheader("🔍 Highlight Review")
     
-    pii_map = apply_overlay(
+    pii_map, exclusions = apply_overlay(
         row['markdown'], 
-        highlighter_df
+        highlighter_df,
+        st.session_state.user_exclusions
     )
 
     js_response = overlayer(
         markdown=row['markdown'],
         pii_map=pii_map,
-        user_exclusions=list(st.session_state.user_exclusions),
+        user_exclusions=exclusions,
         key=f"ov_{selected_file}",
         height=700
     )
