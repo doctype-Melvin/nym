@@ -31,6 +31,9 @@ st.set_page_config(page_title="Complyable | Compliance Review", layout="wide")
 if 'user_exclusions' not in st.session_state:
     st.session_state.user_exclusions = set()
 
+if "draft_manifest" not in st.session_state:
+    st.session_state.draft_manifest = {}
+
 # 3. LOGIC FUNCTIONS
 def toggle_pii(word_hash):
     if word_hash in st.session_state.user_exclusions:
@@ -39,37 +42,43 @@ def toggle_pii(word_hash):
         st.session_state.user_exclusions.add(word_hash)
 
 
-def apply_overlay(text, highlighter_df, user_exclusion_hashes):
+def apply_overlay(text, highlighter_df, file_manifest):
+    # text: raw markdown content
+    # highlighter_df: ui_highlight view with pipeline results
+    # file_manifest: draft edits for this file -- st.session_state.draft_manifest[selected_file]
+
     pii_map = {}
     user_exclusions_text = []
     
-    # 1. We still need a way to check phrases. 
-    # For now, let's assume the recruiter's document text is the primary source.
-    # To find "Max Mustermann" from a list of hashes, we'd technically need 
-    # to hash every possible n-gram (1-word, 2-word, 3-word combinations).
-    
+    # n-gram (1-word, 2-word, 3-word combinations).
     # We iterate through the document and try to match 
     # based on common PII lengths (1 to 3 words).
     words = text.split()
     
     for i in range(len(words)):
-        # Try 1-word, 2-word, and 3-word combinations
-        for n in range(1, 4): 
+        # Try up to 5-word combinations
+        for n in range(1, 6): 
             if i + n > len(words):
                 break
             
             phrase = " ".join(words[i:i+n]).strip('.,!?;:()[]"\'')
             phrase_hash = hashlib.sha256(phrase.encode()).hexdigest()
             
-            # Check against our DB results
+            # Check against DB results
             match = highlighter_df[highlighter_df['pii_hash'] == phrase_hash]
             
             if not match.empty:
                 category = match.iloc[0]['category']
                 pii_map[phrase] = category
                 
-                if phrase_hash in user_exclusion_hashes:
+                # any draft exclusions
+                if phrase_hash in file_manifest['exclusions']:
                     user_exclusions_text.append(phrase)
+            
+            # Check manual redactions in drafts
+            if phrase_hash in file_manifest['manual_redactions']:
+                manual_entry = file_manifest['manual_redactions'][phrase_hash]
+                pii_map[phrase_hash] = manual_entry['label']
     
     return pii_map, user_exclusions_text
 
@@ -179,6 +188,13 @@ else:
     st.sidebar.header("Files to review")
     selected_file = st.sidebar.selectbox("Select a Document", df_pending['filepath'].tolist())
     
+    if selected_file not in st.session_state.draft_manifest:
+        st.session_state.draft_manifest[selected_file] = {
+            "exclusions": set(),
+            "manual_redactions": {},
+            "neutralizations": {}
+        }
+
     row = df_pending[df_pending['filepath'] == selected_file].iloc[0]
     highlighter_df = get_detected_data(selected_file)
 
@@ -187,7 +203,7 @@ else:
     pii_map, exclusions = apply_overlay(
         row['markdown'], 
         highlighter_df,
-        st.session_state.user_exclusions
+        st.session_state.draft_manifest[selected_file]
     )
 
     js_response = overlayer(
@@ -208,10 +224,12 @@ else:
             word_to_toggle = js_response.get("word")
             h = hashlib.sha256(word_to_toggle.encode()).hexdigest()
 
-            if h in st.session_state.user_exclusions:
-                st.session_state.user_exclusions.remove(h)
+            file_manifest = st.session_state.draft_manifest[selected_file]
+
+            if h in file_manifest['exclusions']:
+                file_manifest['exclusions'].remove(h)
             else:
-                st.session_state.user_exclusions.add(h)
+                file_manifest['exclusions'].add(h)
             st.session_state.last_processed_action = current_action_id
             st.rerun()
     
