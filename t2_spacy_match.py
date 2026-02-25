@@ -12,13 +12,21 @@ nlp = spacy.load("de_core_news_lg")
 ruler = nlp.add_pipe("entity_ruler", before="ner")
 patterns = [
     # Catches Dorfstraße, Dorfstr., Dorf str, etc.
-    {"label": "LOC_STR1", "pattern": [{"TEXT": {"REGEX": r"(?i).+(straße|str\.|weg|platz|allee|gasse|damm)$"}}]},
+    {"label": "ADRESSE_1", "pattern": [{"TEXT": {"REGEX": r"(?i).+(straße|str\.|weg|platz|allee|gasse|damm)$"}}]},
     # Catches house numbers following the street
-    {"label": "LOC_STR2", "pattern": [{"TEXT": {"REGEX": r"(?i).+(straße|str\.|weg|platz)$"}}, {"IS_DIGIT": True}]}
+    {"label": "ADRESSE_2", "pattern": [{"TEXT": {"REGEX": r"(?i).+(straße|str\.|weg|platz)$"}}, {"IS_DIGIT": True}]}
 ]
 ruler.add_patterns(patterns)
 
-ent_labels = ["PER", "LOC", 'PHONE', 'EMAIL']
+ent_labels = {
+    "PER": "PERSON",
+    "LOC": "ORT",
+    "PHONE": "TELEFON",
+    "EMAIL": "E-MAIL",
+    "ADRESSE_1": "ADRESSE",
+    "ADRESSE_2": "ADRESSE"
+    }
+
 
 def make_pii_hash(text):
     clean_text = unicodedata.normalize('NFC', str(text)).strip()
@@ -27,31 +35,25 @@ def make_pii_hash(text):
 
 # --- START --- TIER 2 --- START ---
 def get_tier2(doc, nlp, filename, text):
-    all_matches = []
     new_logs = []
     beam_scores = get_beam_confidence(nlp, doc)
 
     # for each rule in list
     for ent in doc.ents:
-        if ent.label_ in ent_labels or ent.label_.startswith("LOC_STR"):
+        if ent.label_ in ent_labels or ent.label_.startswith("ADRESSE_"):
             found_text = ent.text
             text_hash = make_pii_hash(found_text)
-            label = ent.label_
+            label = ent_labels.get(ent.label_, ent.label_)
 
             score_key = (ent.start, ent.end, ent.label_)
 
-            if ent.ent_id or ent.label_ in ['LOC_STR1', 'LOC_STR2']:
+            if ent.ent_id or ent.label_ in ['ADRESSE_1', 'ADRESSE_2']:
                 conf = 1.0
             else:
                 conf = beam_scores.get(score_key, 0.0)
 
             conf = round(float(conf), 4)
 
-            all_matches.append({ # this seems redundant in hash-based logic
-                "hash": text_hash, 
-                "label": label,
-                "confidence": conf
-                })
             new_logs.append({
                 'File': filename,
                 'pii_hash': text_hash,
@@ -61,7 +63,7 @@ def get_tier2(doc, nlp, filename, text):
             redaction_label = f"[{label}]"
             text = re.sub(rf'\b{re.escape(found_text)}\b', redaction_label, text)
     
-    return all_matches, new_logs, text
+    return new_logs, text
 # --- END --- Tier2 --- END ----
 
 # --- START - BEAM SEARCH CONF - START ---
@@ -97,7 +99,7 @@ for content, filepath in zip(input_df['Output'], input_df['Filepath']):
 
     doc = nlp(content)
 
-    all_matches, new_logs, text = get_tier2(doc, nlp, filepath, content)
+    new_logs, text = get_tier2(doc, nlp, filepath, content)
 
     tier2_out.append(text)
 
@@ -109,8 +111,6 @@ for content, filepath in zip(input_df['Output'], input_df['Filepath']):
             'pii_hash': log['pii_hash'],
             'confidence_score': log['score'],
         })
-
-   # tier2_out.append(json.dumps(all_matches)) # this seems redundant in hash-based logic
 
 output_df = input_df.copy()
 output_df['Output'] = tier2_out

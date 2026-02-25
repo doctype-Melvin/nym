@@ -9,39 +9,39 @@ import hashlib
 
 tier1_regex = [
     {
-        "label": "EMAIL",
+        "label": "E-MAIL",
         "pattern": r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
     },
     {
-        "label": "PHONE_DE",
+        "label": "TELEFON",
         "pattern": r"(?:(?:\+?49[ \-\.\(\)]?)?(?:(?:\(?0\d{1,5}\)?)|(?:\d{1,5}))[ \-\.\(\)]?(?:\d[ \-\.\(\)]?){5,10}\d)"
     },
     {
-        "label": "WEB",
+        "label": "WEB_LINK",
         "pattern": r"\b(?<!mailto:)(?<!@)(?:https?:\/\/)?(?:www\.)?(?!\d)([a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?::\d+)?(?:\/[^\s<>\"'@]*|(?!\S))?\b(?![\w@./])"
     },
     {
-        "label": "SOCI",
+        "label": "SOCIAL_MEDIA",
         "pattern": r"@[A-Za-z0-9](?:[A-Za-z0-9._-]{1,28}[A-Za-z0-9])?"
     },
     {
-        "label": "LOC",
+        "label": "STADT",
         "pattern": r"\b\d{5}\b"
     },
     {
-        "label": "DATE",
+        "label": "DATUM",
         "pattern": r"\b\d{1,2}\.\d{1,2}\.(\d{4}|\d{2})\b"
     },
     {
-        "label": "DATE",
+        "label": "DATUM",
         "pattern": r"(?i)\b\d{1,2}\.\s(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d{4}\b"
     },
     {
-        "label": "DATE",
+        "label": "DATUM",
         "pattern": r"(?i)\b\d{2}\.\s(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s\d{4}\b"
     },
     {
-        "label": "DATE",
+        "label": "DATUM",
         "pattern": r"(?i)\b\d{1,2}\.\s(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s'\d{2}\b"
     }
 ]
