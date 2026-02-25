@@ -6,6 +6,7 @@ from datetime import datetime
 import sys
 import html
 import hashlib
+import uuid
 import re
 import streamlit.components.v1 as components
 
@@ -78,7 +79,7 @@ def apply_overlay(text, highlighter_df, file_manifest):
             # Check manual redactions in drafts
             if phrase_hash in file_manifest['manual_redactions']:
                 manual_entry = file_manifest['manual_redactions'][phrase_hash]
-                pii_map[phrase_hash] = manual_entry['label']
+                pii_map[phrase] = manual_entry['label']
     
     return pii_map, user_exclusions_text
 
@@ -93,29 +94,39 @@ def get_pending_data():
         query = "SELECT filepath, original, markdown, output, status FROM pending_review WHERE status = 'PENDING'"
         return pd.read_sql(query, conn)
     
-def generate_live_redaction(text, highlighter_df, user_exclusions):
-    """
-    Produces the final redacted string based on current user decisions
-    """
+def generate_live_redaction(text, highlighter_df, file_manifest):
     if not text:
         return ""
     
-    # Create a lookup for what SHOULD be redacted
-    # Only include hashes that are NOT in the revoked set
-    active_redactions = highlighter_df[~highlighter_df['pii_hash'].isin(user_exclusions)]
-    redact_lookup = dict(zip(active_redactions['pii_hash'], active_redactions['event_code']))
+    # 1. Identify what needs to be redacted
+    # AI detections MINUS exclusions
+    active_machine = set(highlighter_df[~highlighter_df['pii_hash'].isin(file_manifest['exclusions'])]['pii_hash'])
+    # PLUS manual marks
+    manual_hashes = set(file_manifest['manual_redactions'].keys())
+    
+    all_to_redact = active_machine.union(manual_hashes)
 
+    # 2. Process words
     words = text.split()
     final_output = []
 
     for word in words:
-        clean_word = word.strip('.,!?;:()')
+        # Keep punctuation attached to the word for the final look
+        clean_word = word.strip('.,!?;:()[]"\'')
         h = hashlib.sha256(clean_word.encode()).hexdigest()
 
-        if h in redact_lookup:
-            # Replace with the tag from event_code (e.g., [PER])
-            tag = redact_lookup[h].split('-')[-1]
-            final_output.append(f"[{tag}]")
+        if h in all_to_redact:
+            # Check for a specific label
+            if h in file_manifest['manual_redactions']:
+                label = file_manifest['manual_redactions'][h]['label']
+            else:
+                match = highlighter_df[highlighter_df['pii_hash'] == h]
+                label = match.iloc[0]['category'] if not match.empty else "PII"
+            
+            # Format as a clean tag: e.g. [VORNAME] or [MANUELL]
+            # We preserve trailing punctuation like "Mustermann," -> "[VORNAME],"
+            trailing_punctuation = word[len(clean_word.rstrip('.,!?;:()[]"\'')):]
+            final_output.append(f"**[{label.upper()}]**{trailing_punctuation}")
         else:
             final_output.append(word)
 
@@ -199,13 +210,14 @@ else:
     highlighter_df = get_detected_data(selected_file)
 
     st.subheader("🔍 Highlight Review")
-    
+
+    # Call the highlighting overlay
     pii_map, exclusions = apply_overlay(
         row['markdown'], 
         highlighter_df,
         st.session_state.draft_manifest[selected_file]
     )
-
+    
     js_response = overlayer(
         markdown=row['markdown'],
         pii_map=pii_map,
@@ -213,6 +225,7 @@ else:
         key=f"ov_{selected_file}",
         height=700
     )
+
 
     if "last_processed_action" not in st.session_state:
         st.session_state.last_processed_action = None
@@ -264,49 +277,84 @@ else:
         live_redacted_text = generate_live_redaction(
             row['markdown'], 
             highlighter_df, 
-            st.session_state.user_exclusions
+            st.session_state.draft_manifest[selected_file]
         )
         
         # Show the result in the editor
-        st.text_area("Finalized Output", value=live_redacted_text, height=500, key="live_editor")
+        st.markdown(live_redacted_text)
 
     st.divider()
 
     c1, c2 = st.columns([1, 5])
     with c1:
         if st.button("Approve & Sign", type="primary"):
+            file_manifest = st.session_state.draft_manifest[selected_file]
+            ts = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
             # Update the database
-            with sqlite3.connect(DB_PATH) as conn:
-                cursor = conn.cursor()
+            try: 
+
+                with sqlite3.connect(DB_PATH) as conn:
+                    cursor = conn.cursor()
+
+                    for pii_hash, data in file_manifest["manual_redactions"].items():
+                        record_uuid = str(uuid.uuid4())
+                        integrity_blob = f"{record_uuid}{selected_file}{pii_hash}"
+                        integrity_hash = hashlib.sha256(integrity_blob.encode()).hexdigest()
+                        
+                        cursor.execute("""
+                            INSERT INTO audit_trail
+                                       (record_uuid, filepath, timestamp, event_code, pii_hash, label, confidence_score, integrity_hash)
+                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            record_uuid,
+                            selected_file,
+                            ts,
+                            "MANUAL_01",
+                            pii_hash,
+                            data['label'],
+                            1.0,
+                            integrity_hash
+                        ))
                 
                 # create override table
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS manual_overrides (
-                        filepath TEXT,
-                        pii_hash TEXT,
-                        decision TEXT,
-                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
+                # cursor.execute("""
+                #     CREATE TABLE IF NOT EXISTS manual_overrides (
+                #         filepath TEXT,
+                #         pii_hash TEXT,
+                #         decision TEXT,
+                #         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                #     )
+                # """)
 
                 # 2. Update the pending_review table
-                cursor.execute("""
-                    UPDATE pending_review 
-                    SET output = ?, status = 'CLEAN' 
-                    WHERE filepath = ?
-                """, (live_redacted_text, selected_file))
-                
-                # 3. Log every 'Revoke' decision made during this session
-                for h in st.session_state.user_exclusions:
                     cursor.execute("""
-                        INSERT INTO manual_overrides (filepath, pii_hash, decision)
-                        VALUES (?, ?, 'REVOKED')
-                    """, (selected_file, h))
+                        UPDATE pending_review 
+                        SET output = ?, status = 'CLEAN' 
+                        WHERE filepath = ?
+                    """, (live_redacted_text, selected_file))
+                    
+                    conn.commit()
+                # 3. Log every 'Revoke' decision made during this session
+                # for h in st.session_state.user_exclusions:
+                #     cursor.execute("""
+                #         INSERT INTO manual_overrides (filepath, pii_hash, decision)
+                #         VALUES (?, ?, 'REVOKED')
+                #     """, (selected_file, h))
                 
-                conn.commit()
+                del st.session_state.draft_manifest[selected_file]
+                st.balloons()
             
-            st.session_state.user_exclusions = set()
+                st.success(f"Document {selected_file} signed and moved to Audit Trail.")
+                remaining = len(get_pending_data())
+                if remaining > 0:
+                    st.info(f"Gute Arbeit! Nur noch **{remaining}** verbleibende Dokumente.")
+                else:
+                    st.snow()
+                    st.success("**Keine offenen Dokumente mehr!**")
+                
+                import time
+                time.sleep(2)
+                st.rerun()
             
-            st.success(f"Document {selected_file} signed and moved to Audit Trail.")
-            st.balloons()
-            st.rerun()
+            except Exception as e:
+                st.error(f"Commit failed: {e}")
