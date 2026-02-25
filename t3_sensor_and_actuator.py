@@ -44,7 +44,7 @@ final_texts = []
 ts_format = '%d.%m.%Y %H:%M:%S'
 
 for index, row in input_df.iterrows():
-    current = str(row['Output'])
+    current = str(row['Markdown'])
     filepath = row['Filepath']
     
     # 1. Patterns (Your v1 logic)

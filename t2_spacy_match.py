@@ -96,7 +96,7 @@ except:
     cumulative_log = []
 
 # Loop over all provided filepaths in dir
-for content, filepath in zip(input_df['Output'], input_df['Filepath']):
+for content, filepath in zip(input_df['Markdown'], input_df['Filepath']):
 
     doc = nlp(content)
 
