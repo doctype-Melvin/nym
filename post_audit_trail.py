@@ -32,16 +32,18 @@ def archive_audit_trail(df):
                        timestamp,
                        event_code,
                        pii_hash,
+                       label,
                        confidence_score,
                        integrity_hash
                        )
-                       VALUES (?, ?, ?, ?, ?, ?, ?)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                        ''', (
                            str(rec_uuid),
                            str(row['filepath']),
                            str(row['timestamp']),
                            str(row['event_code']),
                            str(row.get('pii_hash', '')),
+                           str(row.get['label']),
                            float(row.get('confidence_score', 0.0)),
                            integrity_hash
                        ))

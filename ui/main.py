@@ -76,7 +76,7 @@ def apply_overlay(text, highlighter_df, user_exclusion_hashes):
 def get_detected_data(filepath):
     with sqlite3.connect(DB_PATH) as conn:
 
-        query = "SELECT pii_hash, category, event_code FROM ui_highlight WHERE filepath = ?"
+        query = "SELECT pii_hash, category, event_code, label FROM ui_highlight WHERE filepath = ?"
         return pd.read_sql(query, conn, params=(filepath,))
 
 def get_pending_data():

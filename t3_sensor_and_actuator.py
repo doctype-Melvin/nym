@@ -49,9 +49,9 @@ for index, row in input_df.iterrows():
     
     # 1. Patterns (Your v1 logic)
     kauf_patterns = [
-        (r"\b(\w+)(kaufmann|kauffrau)\b", r"\1fachkraft", "Group Neutralization"),
-        (r"\b(Kaufmann|Kauffrau)\s+für\b", "Fachkraft für", "Title Neutralization"),
-        (r"\b(Kaufmann|Kauffrau)\s\b", "Fachkraft ", "Title Neutralization")
+        (r"\b(\w+)(kaufmann|kauffrau)\b", r"\1fachkraft", "GENDER"),
+        (r"\b(Kaufmann|Kauffrau)\s+für\b", "Fachkraft für", "GENDER"),
+        (r"\b(Kaufmann|Kauffrau)\s\b", "Fachkraft ", "GENDER")
     ]
     for pattern, replacement, label in kauf_patterns:
         for match in re.finditer(pattern, current, flags=re.IGNORECASE):
@@ -62,6 +62,7 @@ for index, row in input_df.iterrows():
                 'filepath': filepath,
                 'event_code': 'T3-GIP', # Gender-Identifying-Phrase Neutralized Regex
                 'pii_hash': text_hash,
+                'label': label,
                 'confidence_score': 1.0
             })
         current = re.sub(pattern, replacement, current, flags=re.IGNORECASE)
@@ -79,6 +80,7 @@ for index, row in input_df.iterrows():
                 'filepath': filepath,
                 'event_code': 'T3-GIP', # Gender-Identifying-Phrase Neutralized Dictionary
                 'pii_hash': text_hash,
+                'label': "GENDER",
                 'confidence_score': 0.9
             })
             current = re.sub(target, d_row["neutral"], current, flags=re.IGNORECASE)
@@ -95,6 +97,7 @@ for index, row in input_df.iterrows():
                     'filepath': filepath,
                     'event_code': 'T3-FLG', # Gender Flag (not neutralized)
                     'pii_hash': text_hash,
+                    'label': "GENDER?",
                     'confidence_score': 0.75
                 })
     

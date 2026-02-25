@@ -57,6 +57,7 @@ def get_tier2(doc, nlp, filename, text):
             new_logs.append({
                 'File': filename,
                 'pii_hash': text_hash,
+                'label': label,
                 'score': conf
                 })
         
@@ -109,6 +110,7 @@ for content, filepath in zip(input_df['Output'], input_df['Filepath']):
             'filepath': filepath,
             'event_code': 'T2-NER',
             'pii_hash': log['pii_hash'],
+            'label': log['label'],
             'confidence_score': log['score'],
         })
 

@@ -46,6 +46,7 @@ def initialize_vault():
                 timestamp TEXT,
                 event_code TEXT,
                 pii_hash TEXT,
+                label TEXT,
                 confidence_score REAL,
                 integrity_hash TEXT,
                 FOREIGN KEY (event_code) REFERENCES event_registry(event_code)
@@ -92,6 +93,7 @@ def initialize_vault():
                 SELECT
                 a.filepath,
                 a.pii_hash,
+                a.label,
                 r.category,
                 r.event_code,
                 r.methodology,
@@ -115,7 +117,7 @@ def initialize_vault():
         # Check audit_trail
         cursor.execute("PRAGMA table_info(audit_trail)")
         audit_cols = [col[1] for col in cursor.fetchall()]
-        for col_name in ['pii_hash', 'integrity_hash']:
+        for col_name in ['pii_hash', 'label', 'integrity_hash']:
             if col_name not in audit_cols:
                 cursor.execute(f"ALTER TABLE audit_trail ADD COLUMN {col_name} TEXT")
 

@@ -120,6 +120,7 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
             'filepath': filepath,
             'event_code': 'T1-RGX',
             'pii_hash': log['pii_hash'],
+            'label': log['label'],
             'confidence_score': 1.0,
         })
     
