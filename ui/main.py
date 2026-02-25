@@ -67,7 +67,7 @@ def apply_overlay(text, highlighter_df, file_manifest):
             # Check against DB results
             match = highlighter_df[highlighter_df['pii_hash'] == phrase_hash]
             
-            if not match.empty:
+            if not match.empty: # this should be the label as per ui_highlight view
                 category = match.iloc[0]['category']
                 pii_map[phrase] = category
                 
@@ -217,6 +217,7 @@ else:
     if "last_processed_action" not in st.session_state:
         st.session_state.last_processed_action = None
 
+# INTERACTION LOGIC
     # Toggle Action
     if js_response and js_response.get("action") == "toggle":
         current_action_id = js_response.get('click_id')
@@ -226,14 +227,20 @@ else:
 
             file_manifest = st.session_state.draft_manifest[selected_file]
 
-            if h in file_manifest['exclusions']:
-                file_manifest['exclusions'].remove(h)
+            if h in file_manifest['manual_redactions']:
+                del file_manifest['manual_redactions'][h]
+
             else:
-                file_manifest['exclusions'].add(h)
+                if h in file_manifest['exclusions']:
+                    file_manifest['exclusions'].remove(h)
+                else:
+                    file_manifest['exclusions'].add(h)
+            
             st.session_state.last_processed_action = current_action_id
             st.rerun()
     
     # Manual Tag Action
+    # maybe make manual_mark a dict containing {mark: text, label: label}
     if js_response and js_response.get("action") == "manual_mark":
         current_action_id = js_response.get("click_id")
 
@@ -241,7 +248,12 @@ else:
             new_pii = js_response.get("word")
             new_hash = hashlib.sha256(new_pii.encode()).hexdigest()
 
-            save_manual_redaction_mock(selected_file, new_pii)
+            file_manifest = st.session_state.draft_manifest[selected_file]
+
+            file_manifest['manual_redactions'][new_hash] = {
+                "text": new_pii,
+                "label": "MANUELL"
+            }
 
             st.session_state.last_processed_action = current_action_id
             st.rerun()

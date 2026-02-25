@@ -5,19 +5,17 @@ let sessionState = {
     history: [],
 };
 
-function sendToStreamlit(type, data) {
+function sendToStreamlit(data) {
     window.parent.postMessage({
         isStreamlitMessage: true,
-        type: type,
-        ...data
+        type: "streamlit:setComponentValue",
+        value: data
     }, "*");
 }
 
 window.addEventListener("message", (event) => {
     if (event.data.type === "streamlit:render") {
         const { markdown, pii_map, user_exclusions } = event.data.args;
-        sessionState.revokedHashes = user_exclusions;
-
         const container = document.getElementById('overlayer');
 
         try {
@@ -28,13 +26,11 @@ window.addEventListener("message", (event) => {
 
             renderer.text = (token) => {
                 let content = (typeof token === 'object') ? token.text : token;
-                if (typeof content !== 'string' || !pii_map) return content;
+                if (typeof content !== 'string' || !pii_map || Object.keys(pii_map).length === 0) return content;
 
                 const sortedPII = Object.keys(pii_map).sort((a,b) => b.length - a.length)
-
-                if (sortedPII.length === 0) return content
-
                 const escapedPII = sortedPII.map(str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+
                 const regex = new RegExp(`(${escapedPII.join('|')})`, 'g')
 
             return content.replace(regex, (match) => {
@@ -45,7 +41,7 @@ window.addEventListener("message", (event) => {
                 
                 const styleClass = isExcluded ? 'pii-excluded' : `pii-${category.toLowerCase()}`;
                 
-                return `<span class="pii-tag ${styleClass}" onclick="togglePII('${match}')">${match}</span>`;
+                return `<span class="pii-tag ${styleClass}" onclick="togglePII('${match.replace(/'/g, "\\'")}')">${match}</span>`;
                 });
             };
 
@@ -64,8 +60,10 @@ window.addEventListener("message", (event) => {
 });
 
 function togglePII(word) {
-    sendToStreamlit("streamlit:setComponentValue", { 
-        value: { action: "toggle", word: word, click_id: Date.now() } 
+    sendToStreamlit({ 
+        action: "toggle",
+        word: word,
+        click_id: Date.now() 
     });
 }
 
@@ -73,16 +71,14 @@ document.addEventListener('mouseup', () => {
     const selection = window.getSelection().toString().trim()
 
     if (selection && selection.length > 0 && selection.length < 100) {
-        sendToStreamlit("streamlit:setComponentValue", {
-            value: {
+        sendToStreamlit({ 
                 action: "manual_mark",
                 word: selection,
                 click_id: Date.now()
-            }
-        })
+            })
     }
     window.getSelection().removeAllRanges()
 })
 
 // Handshake
-sendToStreamlit("streamlit:componentReady", { apiVersion: 1 });
+window.parent.postMessage({isStreamlitMessage: true, type: "streamlit:componentReady", apiVersion: 1}, "*");
