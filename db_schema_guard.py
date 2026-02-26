@@ -47,11 +47,14 @@ def initialize_vault():
                 event_code TEXT,
                 pii_hash TEXT,
                 label TEXT,
+                occurrence_index INT,
                 confidence_score REAL,
                 integrity_hash TEXT,
                 FOREIGN KEY (event_code) REFERENCES event_registry(event_code)
             )
         """)
+        # Add index for performance
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_filepath ON audit_trail (filepath)")
 
         # Pending Review (Harmonized)
         cursor.execute("""
@@ -94,6 +97,7 @@ def initialize_vault():
                 a.filepath,
                 a.pii_hash,
                 a.label,
+                a.occurrence_index
                 r.category,
                 r.event_code,
                 r.methodology,
@@ -112,20 +116,6 @@ def initialize_vault():
                 certificate_hash TEXT
             )
         """)
-
-        # Column Guards for Migration (Handling existing databases)
-        # Check audit_trail
-        cursor.execute("PRAGMA table_info(audit_trail)")
-        audit_cols = [col[1] for col in cursor.fetchall()]
-        for col_name in ['pii_hash', 'label', 'integrity_hash']:
-            if col_name not in audit_cols:
-                cursor.execute(f"ALTER TABLE audit_trail ADD COLUMN {col_name} TEXT")
-
-        # Check pending_review
-        cursor.execute("PRAGMA table_info(pending_review)")
-        pending_cols = [col[1] for col in cursor.fetchall()]
-        if 'integrity_hash' not in pending_cols:
-            cursor.execute("ALTER TABLE pending_review ADD COLUMN integrity_hash TEXT")
 
         # Seeding Logic for initial job title list
         cursor.execute("SELECT COUNT(*) FROM job_dict")
