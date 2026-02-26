@@ -14,12 +14,19 @@ def stage_pending_pii(df):
     connect = sqlite3.connect(db_path)
     cursor = connect.cursor()
 
+    target_files = tuple(df['filepath'].unique())
+    if len(target_files) == 1:
+        cursor.execute("DELETE FROM pending_pii WHERE filepath = ?", (target_files[0],))
+    else:
+        cursor.execute(f"DELETE FROM pending_pii WHERE filepath IN {target_files}")
+
     records_added = 0
     for _, row in df.iterrows():
         # Clean landing into the staging table
         cursor.execute('''
             INSERT INTO pending_pii (
                        filepath,
+                       pii_text,
                        pii_hash,
                        label,
                        occurrence_index,
@@ -28,9 +35,10 @@ def stage_pending_pii(df):
                        status,
                        is_manual
                        )
-                       VALUES (?, ?, ?, ?, ?, ?, 'REDACT', 0)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, 'REDACT', 0)
                        ''', (
                            str(row['filepath']),
+                           str(row['pii_text']),
                            str(row.get('pii_hash', '')),
                            str(row.get('label', 'UNKNOWN')),
                            row.get('occurrence_index', 1),

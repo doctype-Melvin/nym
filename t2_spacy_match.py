@@ -61,6 +61,7 @@ def get_tier2(doc, nlp, filename, text):
             new_logs.append({
                 'File': filename,
                 'pii_hash': text_hash,
+                'pii_text': found_text,
                 'label': label,
                 'occurrence_index': current_idx,
                 'score': conf
@@ -113,6 +114,7 @@ for content, filepath in zip(input_df['Markdown'], input_df['Filepath']):
         cumulative_log.append({
             'filepath': filepath,
             'pii_hash': log['pii_hash'],
+            'pii_text': log['pii_text'],
             'label': log['label'],
             'occurrence_index': log['occurrence_index'],
             'confidence_score': log['score'],

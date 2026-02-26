@@ -65,6 +65,7 @@ for index, row in input_df.iterrows():
 
             cumulative_log.append({
                 'filepath': filepath,
+                'pii_text': match_text,
                 'pii_hash': text_hash,
                 'label': label,
                 'occurrence_index': occ_counter[match_text],
@@ -87,6 +88,7 @@ for index, row in input_df.iterrows():
             
             cumulative_log.append({
                 'filepath': filepath,
+                'pii_text': actual_text,
                 'pii_hash': text_hash,
                 'label': "GENDER",
                 'occurrence_index': occ_counter[actual_text],
@@ -107,6 +109,7 @@ for index, row in input_df.iterrows():
                 occ_counter[token.text] += 1
             cumulative_log.append({
                     'filepath': filepath,
+                    'pii_text': token.text,
                     'pii_hash': text_hash,
                     'label': "GENDER?",
                     'occurrence_index': occ_counter[token.text],

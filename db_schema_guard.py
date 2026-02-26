@@ -75,6 +75,7 @@ def initialize_vault():
             CREATE TABLE IF NOT EXISTS pending_pii (
                 pii_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 filepath TEXT,
+                pii_text TEXT,
                 pii_hash TEXT,
                 label TEXT,
                 occurrence_index INTEGER,
@@ -115,6 +116,7 @@ def initialize_vault():
             CREATE VIEW IF NOT EXISTS ui_highlight AS 
                 SELECT
                 p.pii_id,
+                p.pii_text,
                 p.filepath,
                 p.pii_hash,
                 p.label,

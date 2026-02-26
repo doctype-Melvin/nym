@@ -55,11 +55,11 @@ html, body {
 }
 
 
-.pii-inclusion { background-color: #bbdefb; color: #000; } /* Location - Blue */
+.pii-redact { background-color: #bbdefb; color: #000; } /* Location - Blue */
 .pii-privacy { background-color: #e1bee7; color: #000; } /* Tier 3 - Purple */
 .pii-manuell { background-color: #e1eead; color: #000; } 
 
-.pii-excluded {
+.pii-exclude {
     background-color: transparent !important;
     border: 1px dashed #999 !important;
     color: inherit !important;

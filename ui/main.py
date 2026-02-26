@@ -29,6 +29,9 @@ if not COMP_PATH.exists():
 st.set_page_config(page_title="Complyable | Compliance Review", layout="wide")
 
 # 2. SESSION STATE
+if "last_click_id" not in st.session_state:
+    st.session_state.last_click_id = None
+
 if 'user_exclusions' not in st.session_state:
     st.session_state.user_exclusions = set()
 
@@ -43,50 +46,49 @@ def toggle_pii(word_hash):
         st.session_state.user_exclusions.add(word_hash)
 
 
-def apply_overlay(text, highlighter_df, file_manifest):
+def apply_overlay(text, highlighter_df):
+    import re
+    from collections import defaultdict
+
     # text: raw markdown content
     # highlighter_df: ui_highlight view with pipeline results
-    # file_manifest: draft edits for this file -- st.session_state.draft_manifest[selected_file]
+    
+    # 1. Track how many times we've seen a word during THIS specific render
+    render_counts = defaultdict(int)
+    
+    # 2. Sort by string length (longest first)
 
-    pii_map = {}
-    user_exclusions_text = []
-    
-    # n-gram (1-word, 2-word, 3-word combinations).
-    # We iterate through the document and try to match 
-    # based on common PII lengths (1 to 3 words).
-    words = text.split()
-    
-    for i in range(len(words)):
-        # Try up to 5-word combinations
-        for n in range(1, 6): 
-            if i + n > len(words):
-                break
-            
-            phrase = " ".join(words[i:i+n]).strip('.,!?;:()[]"\'')
-            phrase_hash = hashlib.sha256(phrase.encode()).hexdigest()
-            
-            # Check against DB results
-            match = highlighter_df[highlighter_df['pii_hash'] == phrase_hash]
-            
-            if not match.empty: # this should be the label as per ui_highlight view
-                category = match.iloc[0]['category']
-                pii_map[phrase] = category
-                
-                # any draft exclusions
-                if phrase_hash in file_manifest['exclusions']:
-                    user_exclusions_text.append(phrase)
-            
-            # Check manual redactions in drafts
-            if phrase_hash in file_manifest['manual_redactions']:
-                manual_entry = file_manifest['manual_redactions'][phrase_hash]
-                pii_map[phrase] = manual_entry['label']
-    
-    return pii_map, user_exclusions_text
+    highlighter_df['len'] = highlighter_df['pii_text'].str.len()
+    sorted_df = highlighter_df.sort_values('len', ascending=False)
+
+    processed_text = text
+
+    # 3. Use the DB records to surgically place tags
+    for _, row in sorted_df.iterrows():
+        word = row['pii_text']
+        target_idx = row['occurrence_index']
+        pii_id = row['pii_id']
+        status = row['status'] 
+        
+        # This function runs for every regex match found
+        def count_and_replace(match):
+            render_counts[word] += 1
+            # If this instance matches the occurrence_index
+            if render_counts[word] == target_idx:
+                # Wrap in a tag the UI can recognize
+                return f'<mark class="{str(status).lower()}" data-id="{pii_id}">{match.group(0)}</mark>'
+            return match.group(0)
+
+        # Word boundary \b ensures we don't match 'alt' inside 'Halter'
+        pattern = rf'\b{re.escape(word)}\b'
+        processed_text = re.sub(pattern, count_and_replace, processed_text)
+
+    return processed_text
 
 def get_detected_data(filepath):
     with sqlite3.connect(DB_PATH) as conn:
 
-        query = "SELECT pii_hash, category, event_code, label FROM ui_highlight WHERE filepath = ?"
+        query = "SELECT pii_id, pii_hash, pii_text, occurrence_index, status, category, event_code, label FROM ui_highlight WHERE filepath = ?"
         return pd.read_sql(query, conn, params=(filepath,))
 
 def get_pending_data():
@@ -94,43 +96,31 @@ def get_pending_data():
         query = "SELECT filepath, original, markdown, output, status FROM pending_review WHERE status = 'PENDING'"
         return pd.read_sql(query, conn)
     
-def generate_live_redaction(text, highlighter_df, file_manifest):
-    if not text:
-        return ""
+def generate_live_redaction(text, highlighter_df):
+    if not text or highlighter_df.empty:
+        return text
     
-    # 1. Identify what needs to be redacted
-    # AI detections MINUS exclusions
-    active_machine = set(highlighter_df[~highlighter_df['pii_hash'].isin(file_manifest['exclusions'])]['pii_hash'])
-    # PLUS manual marks
-    manual_hashes = set(file_manifest['manual_redactions'].keys())
+    import re
     
-    all_to_redact = active_machine.union(manual_hashes)
+    # copy the pii_text
+    to_redact = highlighter_df[highlighter_df['status'] == 'REDACT'].copy()
 
-    # 2. Process words
-    words = text.split()
-    final_output = []
+    to_redact['len'] = to_redact['pii_text'].str.len()
+    to_redact = to_redact.sort_values('len', ascending=False)
 
-    for word in words:
-        # Keep punctuation attached to the word for the final look
-        clean_word = word.strip('.,!?;:()[]"\'')
-        h = hashlib.sha256(clean_word.encode()).hexdigest()
+    processed_text = text
 
-        if h in all_to_redact:
-            # Check for a specific label
-            if h in file_manifest['manual_redactions']:
-                label = file_manifest['manual_redactions'][h]['label']
-            else:
-                match = highlighter_df[highlighter_df['pii_hash'] == h]
-                label = match.iloc[0]['category'] if not match.empty else "PII"
-            
-            # Format as a clean tag: e.g. [VORNAME] or [MANUELL]
-            # We preserve trailing punctuation like "Mustermann," -> "[VORNAME],"
-            trailing_punctuation = word[len(clean_word.rstrip('.,!?;:()[]"\'')):]
-            final_output.append(f"**[{label.upper()}]**{trailing_punctuation}")
-        else:
-            final_output.append(word)
+    for _, row in to_redact.iterrows():
+        word = row['pii_text']
+        label = row['category'] if row['category'] else 'PII'
 
-    return " ".join(final_output)
+        pattern = rf'\b{re.escape(word)}\b'
+
+        replacement = f'**[{label.upper()}]**'
+
+        processed_text = re.sub(pattern, replacement, processed_text)
+    
+    return processed_text
 
 def save_manual_redaction_mock(filepath, word_to_hash, category="MANUAL"):
     """
@@ -212,16 +202,13 @@ else:
     st.subheader("🔍 Highlight Review")
 
     # Call the highlighting overlay
-    pii_map, exclusions = apply_overlay(
+    rendered_html = apply_overlay(
         row['markdown'], 
-        highlighter_df,
-        st.session_state.draft_manifest[selected_file]
+        highlighter_df
     )
     
     js_response = overlayer(
-        markdown=row['markdown'],
-        pii_map=pii_map,
-        user_exclusions=exclusions,
+        markdown=rendered_html,
         key=f"ov_{selected_file}",
         height=700
     )
@@ -232,52 +219,78 @@ else:
 
 # INTERACTION LOGIC
     # Toggle Action
-    if js_response and js_response.get("action") == "toggle":
-        current_action_id = js_response.get('click_id')
-        if st.session_state.last_processed_action != current_action_id:
-            word_to_toggle = js_response.get("word")
-            h = hashlib.sha256(word_to_toggle.encode()).hexdigest()
+    if js_response:
+        current_click_id = js_response.get("click_id")
 
-            file_manifest = st.session_state.draft_manifest[selected_file]
+        if current_click_id != st.session_state.last_click_id:
+            st.session_state.last_click_id = current_click_id
 
-            if h in file_manifest['manual_redactions']:
-                del file_manifest['manual_redactions'][h]
-
-            else:
-                if h in file_manifest['exclusions']:
-                    file_manifest['exclusions'].remove(h)
-                else:
-                    file_manifest['exclusions'].add(h)
+            action = js_response.get("action")
             
-            st.session_state.last_processed_action = current_action_id
-            st.rerun()
-    
+            if action == "toggle":
+                clicked_id = js_response.get('pii_id')
+
+                #SQL logic - status flip for detected pii
+                with sqlite3.connect(DB_PATH) as connect:
+                    cursor = connect.cursor()
+                    cursor.execute("""
+                        UPDATE pending_pii 
+                        SET status = CASE 
+                            WHEN status = 'REDACT' THEN 'EXCLUDE' 
+                            ELSE 'REDACT' 
+                        END
+                        WHERE pii_id = ?
+                    """, (clicked_id,))
+                    connect.commit()
+                st.rerun()
     # Manual Tag Action
-    # maybe make manual_mark a dict containing {mark: text, label: label}
-    if js_response and js_response.get("action") == "manual_mark":
-        current_action_id = js_response.get("click_id")
+            elif action == "manual_mark":
+                selected_text = js_response.get("word")
+                
+                with sqlite3.connect(DB_PATH) as connect:
+                    cursor = connect.cursor()
+                    
+                    # 1. Determine the occurrence_index for this manual selection
+                    # We count how many times this text appears in the raw markdown
+                    # This ensures the highlighter stays on the right instance.
+                    raw_markdown = row['markdown']
+                    # We use a non-overlapping count up to the point of selection 
+                    # (Simplification: just get total count and set as next index)
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM pending_pii 
+                        WHERE filepath = ? AND pii_text = ?
+                    """, (selected_file, selected_text))
+                    existing_count = cursor.fetchone()[0]
+                    
+                    new_idx = existing_count + 1
 
-        if st.session_state.last_processed_action != current_action_id:
-            new_pii = js_response.get("word")
-            new_hash = hashlib.sha256(new_pii.encode()).hexdigest()
-
-            file_manifest = st.session_state.draft_manifest[selected_file]
-
-            file_manifest['manual_redactions'][new_hash] = {
-                "text": new_pii,
-                "label": "MANUELL"
-            }
-
-            st.session_state.last_processed_action = current_action_id
-            st.rerun()
+                    # 2. Insert into pending_pii
+                    cursor.execute("""
+                        INSERT INTO pending_pii (
+                            filepath, pii_text, pii_hash, label, 
+                            occurrence_index, confidence_score, 
+                            event_code, status, is_manual
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        selected_file, 
+                        selected_text, 
+                        hashlib.sha256(selected_text.encode()).hexdigest(),
+                        "MANUAL",       # Label it as manual
+                        new_idx, 
+                        1.0,            # Manual is always 100% confident
+                        "USER-UI",      # Custom event code
+                        'REDACT',       # Default to redacted
+                        1               # is_manual = True
+                    ))
+                    connect.commit()   
+                st.rerun()
 
     with st.expander ("🛡️ Live Redaction Preview"):
         
         # Generate the text based on your toggles in Col 1
         live_redacted_text = generate_live_redaction(
             row['markdown'], 
-            highlighter_df, 
-            st.session_state.draft_manifest[selected_file]
+            highlighter_df
         )
         
         # Show the result in the editor

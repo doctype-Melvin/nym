@@ -82,7 +82,8 @@ def get_tier1(text, filename):
             # write log entries
             new_logs.append({
                 'file': filename,
-                "pii_hash": text_hash,
+                'pii_hash': text_hash,
+                'pii_text': match_text,
                 'label': label,
                 'occurrence_index': current_idx
             })
@@ -118,6 +119,7 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
     for log in new_logs:
         cumulative_log.append({
             'filepath': filepath,
+            'pii_text': log['pii_text'],
             'pii_hash': log['pii_hash'],
             'label': log['label'],
             'occurrence_index': log['occurrence_index'],
