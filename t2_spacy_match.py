@@ -37,6 +37,7 @@ def make_pii_hash(text):
 def get_tier2(doc, nlp, filename, text):
     new_logs = []
     beam_scores = get_beam_confidence(nlp, doc)
+    occ_counter = defaultdict(int)
 
     # for each rule in list
     for ent in doc.ents:
@@ -44,6 +45,9 @@ def get_tier2(doc, nlp, filename, text):
             found_text = ent.text
             text_hash = make_pii_hash(found_text)
             label = ent_labels.get(ent.label_, ent.label_)
+
+            occ_counter[found_text] += 1 
+            current_idx = occ_counter[found_text]
 
             score_key = (ent.start, ent.end, ent.label_)
 
@@ -58,6 +62,7 @@ def get_tier2(doc, nlp, filename, text):
                 'File': filename,
                 'pii_hash': text_hash,
                 'label': label,
+                'occurrence_index': current_idx,
                 'score': conf
                 })
         
@@ -111,6 +116,7 @@ for content, filepath in zip(input_df['Markdown'], input_df['Filepath']):
             'event_code': 'T2-NER',
             'pii_hash': log['pii_hash'],
             'label': log['label'],
+            'occurrence_index': log['occurrence_index'],
             'confidence_score': log['score'],
         })
 

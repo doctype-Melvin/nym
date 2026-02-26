@@ -8,6 +8,7 @@ import hashlib
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+from collections import defaultdict
 
 load_dotenv('./')
 db_path = os.getenv('DB_PATH', "../complyable_app/data/vault/complyable_vault.db")
@@ -46,8 +47,10 @@ ts_format = '%d.%m.%Y %H:%M:%S'
 for index, row in input_df.iterrows():
     current = str(row['Markdown'])
     filepath = row['Filepath']
+
+    occ_counter = defaultdict(int)
     
-    # 1. Patterns (Your v1 logic)
+    # 1. Patterns (v1 logic)
     kauf_patterns = [
         (r"\b(\w+)(kaufmann|kauffrau)\b", r"\1fachkraft", "GENDER"),
         (r"\b(Kaufmann|Kauffrau)\s+für\b", "Fachkraft für", "GENDER"),
@@ -57,12 +60,16 @@ for index, row in input_df.iterrows():
         for match in re.finditer(pattern, current, flags=re.IGNORECASE):
             match_text = match.group()
             text_hash = make_pii_hash(match_text)
+
+            occ_counter[match_text] += 1
+
             cumulative_log.append({
                 'timestamp': datetime.now().strftime(ts_format),
                 'filepath': filepath,
                 'event_code': 'T3-GIP', # Gender-Identifying-Phrase Neutralized Regex
                 'pii_hash': text_hash,
                 'label': label,
+                'occurrence_index': occ_counter[match_text],
                 'confidence_score': 1.0
             })
         current = re.sub(pattern, replacement, current, flags=re.IGNORECASE)
@@ -71,16 +78,19 @@ for index, row in input_df.iterrows():
     for _, d_row in job_table.iterrows():
         original = str(d_row['original'])
         target = rf'\b{re.escape(str(original))}\b'
-        match = re.search(target, current, flags=re.IGNORECASE)
-        if match:
+
+        for match in re.finditer(target, current, flags=re.IGNORECASE):
             actual_text = match.group()
             text_hash = make_pii_hash(actual_text)
+            occ_counter[actual_text] += 1
+            
             cumulative_log.append({
                 'timestamp': datetime.now().strftime(ts_format),
                 'filepath': filepath,
                 'event_code': 'T3-GIP', # Gender-Identifying-Phrase Neutralized Dictionary
                 'pii_hash': text_hash,
                 'label': "GENDER",
+                'occurrence_index': occ_counter[actual_text],
                 'confidence_score': 0.9
             })
             current = re.sub(target, d_row["neutral"], current, flags=re.IGNORECASE)
@@ -92,12 +102,14 @@ for index, row in input_df.iterrows():
             morph = token.morph.to_dict()
             if "Gender" in morph:
                 text_hash = make_pii_hash(token.text)
+                occ_counter[token.text] += 1
             cumulative_log.append({
                     'timestamp': datetime.now().strftime(ts_format),
                     'filepath': filepath,
                     'event_code': 'T3-FLG', # Gender Flag (not neutralized)
                     'pii_hash': text_hash,
                     'label': "GENDER?",
+                    'occurrence_index': occ_counter[token.text],
                     'confidence_score': 0.75
                 })
     
