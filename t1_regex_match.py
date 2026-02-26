@@ -117,13 +117,14 @@ for content, filepath in zip(input_df['Content'], input_df['Filepath']):
 
     for log in new_logs:
         cumulative_log.append({
-            'timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
             'filepath': filepath,
-            'event_code': 'T1-RGX',
             'pii_hash': log['pii_hash'],
             'label': log['label'],
             'occurrence_index': log['occurrence_index'],
             'confidence_score': 1.0,
+            'event_code': 'T1-RGX',
+            'status': 'REDACT',
+            'is_manual': 0
         })
     
 knio.output_tables[0] = knio.Table.from_pandas(pd.DataFrame({

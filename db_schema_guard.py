@@ -79,6 +79,7 @@ def initialize_vault():
                 label TEXT,
                 occurrence_index INTEGER,
                 confidence_score REAL,
+                event_code TEXT,
                 status TEXT DEFAULT 'REDACT', 
                 is_manual INTEGER DEFAULT 0,  
                 FOREIGN KEY (filepath) REFERENCES pending_review(filepath)
