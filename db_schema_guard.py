@@ -50,7 +50,9 @@ def initialize_vault():
                 occurrence_index INT,
                 confidence_score REAL,
                 integrity_hash TEXT,
+                commit_uuid TEXT,
                 FOREIGN KEY (event_code) REFERENCES event_registry(event_code)
+                FOREIGN KEY (commit_uuid) REFERENCES final_commit(commit_uuid)
             )
         """)
         # Add index for performance
@@ -67,6 +69,23 @@ def initialize_vault():
                 integrity_hash TEXT
             )
         """)
+
+        # Pending PII table for staging area
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pending_pii (
+                pii_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filepath TEXT,
+                pii_hash TEXT,
+                label TEXT,
+                occurrence_index INTEGER,
+                confidence_score REAL,
+                status TEXT DEFAULT 'REDACT', 
+                is_manual INTEGER DEFAULT 0,  
+                FOREIGN KEY (filepath) REFERENCES pending_review(filepath)
+            )
+        """)
+
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_pending_pii_filepath ON pending_pii (filepath)")
 
         # Job Dictionary: Ensure columns are 'original' and 'neutral' for Tier 3
         cursor.execute("""
@@ -94,26 +113,33 @@ def initialize_vault():
         cursor.execute("""
             CREATE VIEW IF NOT EXISTS ui_highlight AS 
                 SELECT
-                a.filepath,
-                a.pii_hash,
-                a.label,
-                a.occurrence_index,
+                p.pii_id,
+                p.filepath,
+                p.pii_hash,
+                p.label,
+                p.occurrence_index,
+                p.status,
+                p.is_manual,
                 r.category,
                 r.event_code,
                 r.methodology,
-                a.confidence_score
-            FROM audit_trail a
-            JOIN event_registry r ON a.event_code = r.event_code
+                p.confidence_score
+            FROM pending_pii p
+            JOIN event_registry r ON p.event_code = r.event_code
         """)
 
         # Final Commit
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS final_commit (
-                filepath TEXT PRIMARY KEY,
-                content_sanitized TEXT,
-                approval_timestamp TEXT,
-                recruiter_id TEXT,
-                certificate_hash TEXT
+                commit_uuid TEXT PRIMARY KEY,
+                filepath TEXT,
+                filename_sanitized TEXT,
+                hash_original TEXT,
+                hash_sanitized TEXT,
+                approval_timestamp DATETIME,
+                user_id TEXT,
+                certificate_path TEXT,
+                compliance_grade TEXT
             )
         """)
 

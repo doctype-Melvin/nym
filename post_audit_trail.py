@@ -19,10 +19,11 @@ def archive_audit_trail(df):
     records_added = 0
     for _, row in df.iterrows():
         rec_uuid = str(uuid.uuid4())
+        occ_idx = row.get('occurrence_index', 1)
 
         # Integrity has based on SHA-256 fingerprint of event
         # Proof that record wasn't modified
-        hash_string = f'{row["timestamp"]}{row["filepath"]}{row.get("pii_hash", "")}'
+        hash_string = f'{row["timestamp"]}{row["filepath"]}{row.get("pii_hash", "")}{occ_idx}'
         integrity_hash = hashlib.sha256(hash_string.encode()).hexdigest()
 
         cursor.execute('''
@@ -33,10 +34,11 @@ def archive_audit_trail(df):
                        event_code,
                        pii_hash,
                        label,
+                       occurrence_index,
                        confidence_score,
                        integrity_hash
                        )
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                        ''', (
                            str(rec_uuid),
                            str(row['filepath']),
@@ -44,6 +46,7 @@ def archive_audit_trail(df):
                            str(row['event_code']),
                            str(row.get('pii_hash', '')),
                            str(row.get['label']),
+                           int(occ_idx),
                            float(row.get('confidence_score', 0.0)),
                            integrity_hash
                        ))
