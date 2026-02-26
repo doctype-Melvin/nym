@@ -97,7 +97,7 @@ def initialize_vault():
                 a.filepath,
                 a.pii_hash,
                 a.label,
-                a.occurrence_index
+                a.occurrence_index,
                 r.category,
                 r.event_code,
                 r.methodology,
