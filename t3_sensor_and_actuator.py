@@ -64,13 +64,14 @@ for index, row in input_df.iterrows():
             occ_counter[match_text] += 1
 
             cumulative_log.append({
-                'timestamp': datetime.now().strftime(ts_format),
                 'filepath': filepath,
-                'event_code': 'T3-GIP', # Gender-Identifying-Phrase Neutralized Regex
                 'pii_hash': text_hash,
                 'label': label,
                 'occurrence_index': occ_counter[match_text],
-                'confidence_score': 1.0
+                'confidence_score': 1.0,
+                'event_code': 'T3-GIP', # Gender-Identifying-Phrase Neutralized Regex
+                'status': 'REDACT',
+                'is_manual': 0
             })
         current = re.sub(pattern, replacement, current, flags=re.IGNORECASE)
 
@@ -85,13 +86,14 @@ for index, row in input_df.iterrows():
             occ_counter[actual_text] += 1
             
             cumulative_log.append({
-                'timestamp': datetime.now().strftime(ts_format),
                 'filepath': filepath,
-                'event_code': 'T3-GIP', # Gender-Identifying-Phrase Neutralized Dictionary
                 'pii_hash': text_hash,
                 'label': "GENDER",
                 'occurrence_index': occ_counter[actual_text],
-                'confidence_score': 0.9
+                'confidence_score': 0.9,
+                'event_code': 'T3-GIP', # Gender-Identifying-Phrase Neutralized Dictionary
+                'status': 'REDACT',
+                'is_manual': 0
             })
             current = re.sub(target, d_row["neutral"], current, flags=re.IGNORECASE)
 
@@ -104,13 +106,14 @@ for index, row in input_df.iterrows():
                 text_hash = make_pii_hash(token.text)
                 occ_counter[token.text] += 1
             cumulative_log.append({
-                    'timestamp': datetime.now().strftime(ts_format),
                     'filepath': filepath,
-                    'event_code': 'T3-FLG', # Gender Flag (not neutralized)
                     'pii_hash': text_hash,
                     'label': "GENDER?",
                     'occurrence_index': occ_counter[token.text],
-                    'confidence_score': 0.75
+                    'confidence_score': 0.75,
+                    'event_code': 'T3-FLG', # Gender Flag (not neutralized)
+                    'status': 'REDACT',
+                    'is_manual': 0
                 })
     
     final_texts.append(current)

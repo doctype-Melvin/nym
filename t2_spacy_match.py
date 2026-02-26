@@ -111,13 +111,14 @@ for content, filepath in zip(input_df['Markdown'], input_df['Filepath']):
 
     for log in new_logs:
         cumulative_log.append({
-            'timestamp': pd.Timestamp.now().strftime('%d.%m.%Y %H:%M:%S'),
             'filepath': filepath,
-            'event_code': 'T2-NER',
             'pii_hash': log['pii_hash'],
             'label': log['label'],
             'occurrence_index': log['occurrence_index'],
             'confidence_score': log['score'],
+            'event_code': 'T2-NER',
+            'status': 'REDACT',
+            'is_manual': 0
         })
 
 output_df = input_df.copy()
