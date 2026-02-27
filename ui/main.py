@@ -40,12 +40,12 @@ def apply_overlay(text, highlighter_df):
         target_idx = row['occurrence_index']
         pii_id = row['pii_id']
         status = str(row['status']).lower()
-        category_class = str(row['category']).lower()
+        category_class = "gender" if str(row['category']).lower() == "gender" else "default"
         
         def count_and_replace(match):
             render_counts[word] += 1
             if render_counts[word] == target_idx:
-                return f'<mark class="{status} {category_class}" data-id="{pii_id}">{match.group(0)}</mark>'
+                return f'<mark class="{category_class}" data-id="{pii_id}">{match.group(0)}</mark>'
             return match.group(0)
 
         pattern = rf'(?<!\w){re.escape(word)}(?!\w)'
@@ -94,6 +94,26 @@ else:
     st.sidebar.header("Files to review")
     selected_file = st.sidebar.selectbox("Select a Document", df_pending['filepath'].tolist())
     
+    st.sidebar.divider()
+    st.sidebar.subheader('Manual Tagging')
+
+    LABELS_ACTIVE = [
+        "PERSON",
+        "PLZ",
+        "DATUM",
+        "TELEFON",
+        "ADRESSE",
+        "E-MAIL",
+        "ORT",
+        "WEB_LINK"
+    ]
+
+    active_label = st.sidebar.selectbox(
+        "Label für manuelle Markierung",
+        options=LABELS_ACTIVE,
+        help="Wähle das passende Label für die Textauswahl"
+    )
+
     # Fetch data directly from DB view
     highlighter_df = get_detected_data(selected_file)
     row = df_pending[df_pending['filepath'] == selected_file].iloc[0]
@@ -130,8 +150,10 @@ else:
 
             elif action == "manual_mark":
                 selected_text = js_response.get("word")
+                label_to_apply = active_label
                 with sqlite3.connect(DB_PATH) as conn:
                     cursor = conn.cursor()
+                    
                     cursor.execute("SELECT COUNT(*) FROM pending_pii WHERE filepath = ? AND pii_text = ?", (selected_file, selected_text))
                     new_idx = cursor.fetchone()[0] + 1
                     
@@ -140,7 +162,7 @@ else:
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         selected_file, selected_text, hashlib.sha256(selected_text.encode()).hexdigest(),
-                        "MANUAL", new_idx, 1.0, "USER-UI", 'REDACT', 1
+                        label_to_apply, new_idx, 1.0, "USER-UI", 'REDACT', 1
                     ))
                     conn.commit()   
                 st.rerun()

@@ -40,23 +40,14 @@ html, body {
     cursor: default !important;
 }
 
-mark {
-    border-radius: 3px;
-    padding: 0 2px;
-    cursor: pointer;
-    background-color: #611ba3; /* Default yellow for general PII */
-    color: rgb(241, 241, 241);
-    border-bottom: 2px solid transparent;
-    transition: all 0.2s;
-}
-
 /* Status-based styles */
-mark.redact { background-color: #ffcdd2; border-bottom-color: #eabf3e; } /* Reddish */
-mark.exclude { background-color: transparent; border: 1px dashed #9e9e9e; color: #757575; } /* Ghosted */
+mark.default { background-color: #eb9a9a; border-bottom-color: #c94d4d; } /* Reddish */
+/* mark.exclude.default { background-color: transparent !important; border: 1px dashed #9e9e9e !important; color: #757575 !important; } Ghosted */
+mark.exclude { background-color: transparent !important; border: 1px dashed #9e9e9e !important; color: #757575 !important; } Ghosted
 
 /* Label-based "Exceptions" (Overwrites the above) */
 mark.gender { 
     background-color: #e1f5fe; /* Light Blue */
-    border-bottom: 2px solid #039be5; 
-    color: #01579b;
+    border-bottom: 2px solid #b5fe8d; 
+    color: #255e2c;
 }
