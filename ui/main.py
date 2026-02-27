@@ -17,6 +17,10 @@ DB_PATH = BASE_DIR / "data" / "vault" / "complyable_vault.db"
 UPLOAD_DIR = BASE_DIR / "data" / "input"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+# --- KNIME
+KNIME_EXE = r"/Applications/KNIME 5.4.2.app/Contents/MacOS/knime"
+WORKFLOW_PATH = str(BASE_DIR / "knime" / "core-v1.knwf")
+
 # -- Overlay component
 CURRENT_DIR = Path(__file__).parent.absolute()
 COMP_PATH = CURRENT_DIR / "overlay"
@@ -32,21 +36,53 @@ def init_db_schema():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS pending_pii (
                 pii_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                filepath TEXT, pii_text TEXT, pii_hash TEXT,
-                label TEXT, occurrence_index INTEGER, 
-                confidence_score REAL, event_code TEXT, 
-                status TEXT, is_manual INTEGER
+                filepath TEXT,
+                pii_text TEXT,
+                pii_hash TEXT,
+                label TEXT,
+                occurrence_index INTEGER,
+                confidence_score REAL,
+                event_code TEXT,
+                status TEXT DEFAULT 'REDACT', 
+                is_manual INTEGER DEFAULT 0,  
+                FOREIGN KEY (filepath) REFERENCES pending_review(filepath)
             )
         """)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS pending_review (
                 filepath TEXT PRIMARY KEY,
+                original TEXT,
                 markdown TEXT,
-                status TEXT DEFAULT 'PENDING'
+                output TEXT,
+                status TEXT DEFAULT 'PENDING',
+                integrity_hash TEXT
             )
         """)
-        cursor.execute("CREATE TABLE IF NOT EXISTS job_dict (original TEXT PRIMARY KEY, neutral TEXT)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS event_registry (event_code TEXT PRIMARY KEY, methodology TEXT)")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS job_dict (
+                original TEXT PRIMARY KEY,
+                neutral TEXT
+            )
+        """)
+        cursor.execute("""CREATE TABLE IF NOT EXISTS event_registry (
+                event_code TEXT PRIMARY KEY,
+                category TEXT, 
+                source_tier TEXT,
+                methodology TEXT,
+                legal_basis TEXT
+            )""")
+        cursor.execute("DROP VIEW IF EXISTS ui_highlight")
+        cursor.execute("""
+            CREATE VIEW ui_highlight AS 
+            SELECT
+                p.pii_id, p.filepath, p.pii_text, p.pii_hash,
+                COALESCE(j.neutral, p.label) AS label,
+                p.occurrence_index, p.status, p.is_manual,
+                p.label AS category,
+                p.confidence_score
+            FROM pending_pii p
+            LEFT JOIN job_dict j ON p.pii_text = j.original
+        """)
         conn.commit()
 
 # Call this at the top of main.py

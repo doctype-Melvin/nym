@@ -90,6 +90,7 @@ def initialize_vault():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_pending_pii_filepath ON pending_pii (filepath)")
 
         # Job Dictionary: Ensure columns are 'original' and 'neutral' for Tier 3
+        cursor.execute("DROP TABLE IF EXISTS job_dict")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS job_dict (
                 original TEXT PRIMARY KEY,
@@ -112,6 +113,7 @@ def initialize_vault():
         """)
 
         # View for Streamlit Highlighter
+        cursor.execute("DROP VIEW IF EXISTS ui_highlight")
         cursor.execute("""
             CREATE VIEW ui_highlight AS 
                 SELECT
