@@ -111,7 +111,7 @@ for index, row in input_df.iterrows():
                     'filepath': filepath,
                     'pii_text': token.text,
                     'pii_hash': text_hash,
-                    'label': "GENDER?",
+                    'label': "GENDER",
                     'occurrence_index': occ_counter[token.text],
                     'confidence_score': 0.75,
                     'event_code': 'T3-FLG', # Gender Flag (not neutralized)

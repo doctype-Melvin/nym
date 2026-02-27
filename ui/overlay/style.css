@@ -40,28 +40,23 @@ html, body {
     cursor: default !important;
 }
 
-.pii-tag {
+mark {
+    border-radius: 3px;
+    padding: 0 2px;
     cursor: pointer;
-    padding: 1px 4px;
-    border-radius: 4px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    border: 1px solid transparent;
+    background-color: #611ba3; /* Default yellow for general PII */
+    color: rgb(241, 241, 241);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
 }
 
-.pii-tag:hover {
-    filter: brightness(0.9);
-    border-color: rgba(0,0,0,0.2);
-}
+/* Status-based styles */
+mark.redact { background-color: #ffcdd2; border-bottom-color: #eabf3e; } /* Reddish */
+mark.exclude { background-color: transparent; border: 1px dashed #9e9e9e; color: #757575; } /* Ghosted */
 
-
-.pii-redact { background-color: #bbdefb; color: #000; } /* Location - Blue */
-.pii-privacy { background-color: #e1bee7; color: #000; } /* Tier 3 - Purple */
-.pii-manuell { background-color: #e1eead; color: #000; } 
-
-.pii-exclude {
-    background-color: transparent !important;
-    border: 1px dashed #999 !important;
-    color: inherit !important;
-    opacity: 0.7;
+/* Label-based "Exceptions" (Overwrites the above) */
+mark.gender { 
+    background-color: #e1f5fe; /* Light Blue */
+    border-bottom: 2px solid #039be5; 
+    color: #01579b;
 }

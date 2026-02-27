@@ -39,15 +39,16 @@ def apply_overlay(text, highlighter_df):
         word = row['pii_text']
         target_idx = row['occurrence_index']
         pii_id = row['pii_id']
-        status = str(row['status']).lower() 
+        status = str(row['status']).lower()
+        category_class = str(row['category']).lower()
         
         def count_and_replace(match):
             render_counts[word] += 1
             if render_counts[word] == target_idx:
-                return f'<mark class="{status}" data-id="{pii_id}">{match.group(0)}</mark>'
+                return f'<mark class="{status} {category_class}" data-id="{pii_id}">{match.group(0)}</mark>'
             return match.group(0)
 
-        pattern = rf'\b{re.escape(word)}\b'
+        pattern = rf'(?<!\w){re.escape(word)}(?!\w)'
         processed_text = re.sub(pattern, count_and_replace, processed_text)
 
     return processed_text
