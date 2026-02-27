@@ -123,7 +123,7 @@ def initialize_vault():
                 p.occurrence_index,
                 p.status,
                 p.is_manual,
-                r.category,
+                p.label AS category,
                 r.event_code,
                 r.methodology,
                 p.confidence_score
