@@ -52,9 +52,9 @@ for index, row in input_df.iterrows():
     
     # 1. Patterns (v1 logic)
     kauf_patterns = [
-        (r"\b(\w+)(kaufmann|kauffrau)\b", r"\1fachkraft", "GENDER"),
-        (r"\b(Kaufmann|Kauffrau)\s+für\b", "Fachkraft für", "GENDER"),
-        (r"\b(Kaufmann|Kauffrau)\s\b", "Fachkraft ", "GENDER")
+        (r"\b(\w+)(kaufmann|kauffrau)\b", r"\1fachkraft", "GEN-RE"),
+        (r"\b(Kaufmann|Kauffrau)\s+für\b", "Fachkraft für", "GEN-RE"),
+        (r"\b(Kaufmann|Kauffrau)\s\b", "Fachkraft ", "GEN-RE")
     ]
     for pattern, replacement, label in kauf_patterns:
         for match in re.finditer(pattern, current, flags=re.IGNORECASE):
@@ -90,7 +90,7 @@ for index, row in input_df.iterrows():
                 'filepath': filepath,
                 'pii_text': actual_text,
                 'pii_hash': text_hash,
-                'label': "GENDER",
+                'label': "GEN-RE",
                 'occurrence_index': occ_counter[actual_text],
                 'confidence_score': 0.9,
                 'event_code': 'T3-GIP', # Gender-Identifying-Phrase Neutralized Dictionary
@@ -100,24 +100,31 @@ for index, row in input_df.iterrows():
             current = re.sub(target, d_row["neutral"], current, flags=re.IGNORECASE)
 
     # 3. Sensor (Linguistic Flagging for what wasn't caught above)
-    doc = nlp(current)
+    original_markdown = str(row['Markdown'])
+    doc = nlp(original_markdown)
     for token in doc:
-        if (token.pos_ in ["NOUN", "PROPN", "PRON"]) and (is_person_related(token) or token.pos_ == "PRON"):
+        if (token.pos_ in ["NOUN", "PROPN"]):
             morph = token.morph.to_dict()
-            if "Gender" in morph:
-                text_hash = make_pii_hash(token.text)
-                occ_counter[token.text] += 1
-            cumulative_log.append({
-                    'filepath': filepath,
-                    'pii_text': token.text,
-                    'pii_hash': text_hash,
-                    'label': "GENDER",
-                    'occurrence_index': occ_counter[token.text],
-                    'confidence_score': 0.75,
-                    'event_code': 'T3-FLG', # Gender Flag (not neutralized)
-                    'status': 'REDACT',
-                    'is_manual': 0
-                })
+            gender = morph.get("Gender")
+
+            if is_person_related(token) and gender in ['Fem', 'Masc']:
+                
+                # Suffic check for job titles
+                if any(token.text.lower().endswith(s) for s in ['in', 'innen', 'er', 'erin']):
+
+                    text_hash = make_pii_hash(token.text)
+                    occ_counter[token.text] += 1
+                    cumulative_log.append({
+                        'filepath': filepath,
+                        'pii_text': token.text,
+                        'pii_hash': text_hash,
+                        'label': "GEN-FL",
+                        'occurrence_index': occ_counter[token.text],
+                        'confidence_score': 0.75,
+                        'event_code': 'T3-FLG', # Gender Flag (not neutralized)
+                        'status': 'REDACT',
+                        'is_manual': 0
+                    })
     
     final_texts.append(current)
 

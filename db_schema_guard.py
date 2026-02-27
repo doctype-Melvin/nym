@@ -113,13 +113,13 @@ def initialize_vault():
 
         # View for Streamlit Highlighter
         cursor.execute("""
-            CREATE VIEW IF NOT EXISTS ui_highlight AS 
+            CREATE VIEW ui_highlight AS 
                 SELECT
                 p.pii_id,
                 p.pii_text,
                 p.filepath,
                 p.pii_hash,
-                p.label,
+                COALESCE(j.neutral, p.label) AS label,
                 p.occurrence_index,
                 p.status,
                 p.is_manual,
@@ -129,6 +129,7 @@ def initialize_vault():
                 p.confidence_score
             FROM pending_pii p
             JOIN event_registry r ON p.event_code = r.event_code
+            LEFT JOIN job_dict j ON p.pii_text = j.original;
         """)
 
         # Final Commit

@@ -13,6 +13,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR))
 DB_PATH = BASE_DIR / "data" / "vault" / "complyable_vault.db"
 
+# --- Dropzone
+UPLOAD_DIR = BASE_DIR / "data" / "input"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
 # -- Overlay component
 CURRENT_DIR = Path(__file__).parent.absolute()
 COMP_PATH = CURRENT_DIR / "overlay"
@@ -25,30 +29,54 @@ st.set_page_config(page_title="Complyable | Compliance Review", layout="wide")
 if "last_click_id" not in st.session_state:
     st.session_state.last_click_id = None
 
+if "editing_pii_id" not in st.session_state:
+    st.session_state.editing_pii_id = None
+
 # 3. LOGIC FUNCTIONS
 def apply_overlay(text, highlighter_df):
     from collections import defaultdict
     render_counts = defaultdict(int)
+
+    def get_ui_class(row):
+        if str(row['status']).lower() == 'exclude':
+            return "pii-excluded"
+        lbl = str(row['category'])
+        if lbl == "GEN-RE": return "gen-resolved"
+        if lbl == "GEN-FL": return "gen-flagged"
+        return "pii-default"
     
     # Sort by length to handle multi-word PII correctly
-    highlighter_df['len'] = highlighter_df['pii_text'].str.len()
-    sorted_df = highlighter_df.sort_values('len', ascending=False)
+    #highlighter_df['len'] = highlighter_df['pii_text'].str.len()
+    #sorted_df = highlighter_df.sort_values(by=['len'], ascending=False)
+    highlighter_df['priority'] = highlighter_df['category'].apply(
+    lambda x: 1 if x == "GEN-RE" else (2 if x == "GEN-FL" else 3)
+    )
+    sorted_df = highlighter_df.sort_values(by=['pii_text', 'occurrence_index', 'priority'])
+    highlighter_df = sorted_df.drop_duplicates(subset=['pii_text', 'occurrence_index'], keep='first')
 
     processed_text = text
-    for _, row in sorted_df.iterrows():
-        word = row['pii_text']
-        target_idx = row['occurrence_index']
-        pii_id = row['pii_id']
-        status = str(row['status']).lower()
-        category_class = "gender" if str(row['category']).lower() == "gender" else "default"
+    # Crucial: Iterate by word group to keep render_counts scoped correctly
+    for word, group in highlighter_df.groupby('pii_text'):
+        # Reset counter for EACH unique word
+        render_counts[word] = 0 
+        
+        pattern = rf'(?<!\w){re.escape(word)}(?!\w)'
         
         def count_and_replace(match):
             render_counts[word] += 1
-            if render_counts[word] == target_idx:
-                return f'<mark class="{category_class}" data-id="{pii_id}">{match.group(0)}</mark>'
+            # Check if this specific occurrence (1, 2, 3...) is in our database
+            match_row = group[group['occurrence_index'] == render_counts[word]]
+            
+            if not match_row.empty:
+                r = match_row.iloc[0]
+                ui_class = get_ui_class(r)
+                lbl = r['label']
+                # If label is a neutral word (not a code), show the arrow
+                arrow = f" <small>→ {lbl}</small>" if lbl not in ["GEN-RE", "GEN-FL", "GENDER"] else ""
+                return f'<mark class="{ui_class}" data-id="{r["pii_id"]}">{match.group(0)}{arrow}</mark>'
+            
             return match.group(0)
 
-        pattern = rf'(?<!\w){re.escape(word)}(?!\w)'
         processed_text = re.sub(pattern, count_and_replace, processed_text)
 
     return processed_text
@@ -86,6 +114,14 @@ def generate_live_redaction(text, highlighter_df):
 # 4. UI MAIN RENDER
 st.title("Shield Complyable | Recruiter Review Portal")
 
+with st.expander("📂 Upload New Documents", expanded=False):
+    uploaded_files = st.file_uploader("Drop PDF or Markdown files here", accept_multiple_files=True)
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            with open(UPLOAD_DIR / uploaded_file.name, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+        st.success(f"Uploaded {len(uploaded_files)} files. Please run your KNIME workflow to process.")
+
 df_pending = get_pending_data()
 
 if df_pending.empty:
@@ -114,10 +150,56 @@ else:
         help="Wähle das passende Label für die Textauswahl"
     )
 
+    st.sidebar.divider()
+    if st.session_state.editing_pii_id:
+        with sqlite3.connect(DB_PATH) as conn:
+            # Get details of the clicked item
+            res = pd.read_sql("""
+                SELECT pii_text, label, category 
+                FROM ui_highlight WHERE pii_id = ?
+            """, conn, params=(st.session_state.editing_pii_id,))
+        
+        if not res.empty and res.iloc[0]['category'].lower() == 'gender':
+            row = res.iloc[0]
+            word = row['pii_text']
+            # If the label isn't 'GENDER', it means we already have a suggestion
+            current_suggestion = row['label'] if row['label'] != "GENDER" else ""
+
+            with st.sidebar.expander("✨ Gender Neutralizer", expanded=True):
+                st.markdown(f"**Original:** `{word}`")
+                
+                new_val = st.text_input(
+                    "Neutral phrasing:", 
+                    value=current_suggestion,
+                    placeholder="e.g., Fachkraft"
+                )
+
+                col1, col2 = st.columns(2)
+                if col1.button("Save & Apply All"):
+                    with sqlite3.connect(DB_PATH) as conn:
+                        cur = conn.cursor()
+                        # 1. Update ALL instances of this word in current file
+                        cur.execute("""
+                            UPDATE pending_pii SET label = ? 
+                            WHERE filepath = ? AND pii_text = ? AND label = 'GENDER'
+                        """, (new_val, selected_file, word))
+                        
+                        # 2. Add to master dictionary for future learning
+                        cur.execute("""
+                            INSERT OR REPLACE INTO job_dict (original, neutral) 
+                            VALUES (?, ?)
+                        """, (word, new_val))
+                        conn.commit()
+                    st.rerun()
+                    
+                if col2.button("Clear/Reset"):
+                    st.session_state.editing_pii_id = None
+                    st.rerun()
+
     # Fetch data directly from DB view
     highlighter_df = get_detected_data(selected_file)
     row = df_pending[df_pending['filepath'] == selected_file].iloc[0]
-
+    print(highlighter_df.head())
     st.subheader("🔍 Highlight Review")
 
     # Interactive Overlay
@@ -138,6 +220,7 @@ else:
             
             if action == "toggle":
                 clicked_id = js_response.get('pii_id')
+                st.session_state.editing_pii_id = clicked_id
                 with sqlite3.connect(DB_PATH) as conn:
                     cursor = conn.cursor()
                     cursor.execute("""

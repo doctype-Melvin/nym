@@ -41,13 +41,7 @@ html, body {
 }
 
 /* Status-based styles */
-mark.default { background-color: #eb9a9a; border-bottom-color: #c94d4d; } /* Reddish */
-/* mark.exclude.default { background-color: transparent !important; border: 1px dashed #9e9e9e !important; color: #757575 !important; } Ghosted */
-mark.exclude { background-color: transparent !important; border: 1px dashed #9e9e9e !important; color: #757575 !important; } Ghosted
-
-/* Label-based "Exceptions" (Overwrites the above) */
-mark.gender { 
-    background-color: #e1f5fe; /* Light Blue */
-    border-bottom: 2px solid #b5fe8d; 
-    color: #255e2c;
-}
+mark.pii-default { background-color: #ffcdd2; border-bottom: 2px solid #f44336; }
+mark.gen-resolved { background-color: #bbdefb; border-bottom: 2px solid #2196f3; }
+mark.gen-flagged  { background-color: #e3f2fd; border-bottom: 2px solid #90caf9; border-style: dashed; }
+mark small { font-size: 0.75em; font-weight: bold; color: #0d47a1; margin-left: 4px; }
