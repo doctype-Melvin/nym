@@ -25,7 +25,7 @@ tier1_regex = [
         "pattern": r"@[A-Za-z0-9](?:[A-Za-z0-9._-]{1,28}[A-Za-z0-9])?"
     },
     {
-        "label": "STADT",
+        "label": "PLZ",
         "pattern": r"\b\d{5}\b"
     },
     {
