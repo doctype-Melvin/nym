@@ -25,6 +25,33 @@ overlayer = components.declare_component("overlayer", path=str(COMP_PATH))
 
 st.set_page_config(page_title="Complyable | Compliance Review", layout="wide")
 
+def init_db_schema():
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        # Create core tables if missing
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pending_pii (
+                pii_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filepath TEXT, pii_text TEXT, pii_hash TEXT,
+                label TEXT, occurrence_index INTEGER, 
+                confidence_score REAL, event_code TEXT, 
+                status TEXT, is_manual INTEGER
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pending_review (
+                filepath TEXT PRIMARY KEY,
+                markdown TEXT,
+                status TEXT DEFAULT 'PENDING'
+            )
+        """)
+        cursor.execute("CREATE TABLE IF NOT EXISTS job_dict (original TEXT PRIMARY KEY, neutral TEXT)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS event_registry (event_code TEXT PRIMARY KEY, methodology TEXT)")
+        conn.commit()
+
+# Call this at the top of main.py
+init_db_schema()
+
 # 2. SESSION STATE (The Idempotency Guard)
 if "last_click_id" not in st.session_state:
     st.session_state.last_click_id = None
