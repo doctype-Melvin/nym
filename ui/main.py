@@ -69,13 +69,52 @@ elif st.session_state.app_mode == "Review":
         with col_main:
             rendered_html = logic.apply_overlay(doc_row['markdown'], highlighter_df)
             js_response = overlayer(markdown=rendered_html, key=f"ov_{selected_file}", height=700)
-            
-            # Catch JS Events
+
+            # Interaction logic
             if js_response:
-                # Handle click/toggle/manual logic here (Next Step)
-                pass
+                action = js_response.get("action")
+                current_click_id = js_response.get("click_id")
+
+                if current_click_id != st.session_state.last_click_id:
+                    st.session_state.last_click_id = current_click_id
+
+                    if action == "manual_mark":
+                        st.session_state.selected_word = js_response.get("word")
+                        st.rerun()
+                    
+                    elif action == "toggle":
+                        db.update_pii_status(js_response.get('pii_id'))
+                        st.rerun()
 
         with col_preview:
+            # Set context in sidebar panel
+            if "selected_word" in st.session_state and st.session_state.selected_word:
+                st.info(f"Selected: **{st.session_state.selected_word}**")
+
+                choice = st.radio("Action", ["🏷️ Label", "✨ Neutralize (Gender)"])
+
+                if choice == "🏷️ Label":
+                    label = st.selectbox("Type: ", ["PERSON", "ADRESSE", "E-MAIL", "TELEFON", "PLZ", "ORT", "WEB"])
+                    if st.button("Add label"):
+                        # Feed into occurence index
+                        word = st.session_state.selected_word
+                        pii_hash = logic.create_pii_hash(word)
+
+                        idx = doc_row['markdown'].count(word)
+                        db.save_manual_tag(selected_file, word, label, idx, pii_hash)
+                        st.session_state.selected_word = None
+                        st.rerun()
+                
+                else: # Neutralize phrase
+                    neutral = st.text_input("Neutrale Formulierung:", placeholder="z.B. ergebnisorientierte Vertriebsfachkraft, ")
+                    if st.button("Formulierung hinzufügen"):
+                        st.session_state.selected_word = None
+                        st.rerun()
+                
+                if st.button("Cancel"):
+                    st.session_state.selected_word = None
+                    st.rerun()
+
             st.caption("🛡️ Live Redaction Preview")
             redacted = logic.generate_live_redaction(doc_row['markdown'], highlighter_df)
             st.markdown(redacted)
