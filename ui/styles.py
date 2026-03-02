@@ -10,4 +10,4 @@ def inject_custom_css():
         .gen-resolved { background-color: #90ee90; }
         small { font-size: 0.7em; opacity: 0.8; margin-left: 4px; }
         </style>
-    """, unsafe_allow_value=True)
+    """, unsafe_allow_html=True)
