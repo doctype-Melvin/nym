@@ -41,7 +41,8 @@ def init_db_schema():
                 p.pii_id, p.filepath, p.pii_text, p.pii_hash,
                 COALESCE(j.neutral, p.label) AS label,
                 p.occurrence_index, p.status, p.is_manual,
-                p.label AS category, p.confidence_score
+                p.label AS category,
+                p.event_code, p.confidence_score
             FROM pending_pii p
             LEFT JOIN job_dict j ON p.pii_text = j.original
         """)
@@ -70,7 +71,7 @@ def save_manual_tag(filepath, text, label, index, pii_hash):
         conn.execute("""
             INSERT INTO pending_pii (filepath, pii_text, pii_hash, label, occurrence_index, confidence_score, event_code, status, is_manual)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (filepath, text, pii_hash, label, index, 1.0, "USER-UI", 'REDACT', 1))
+        """, (filepath, text, pii_hash, label, index, 1.0, "USR-RED", 'REDACT', 1))
         conn.commit()
 
 def save_neutral(filepath, original_text, neutral_text):
@@ -88,11 +89,11 @@ def save_neutral(filepath, original_text, neutral_text):
         cursor.execute("""
             INSERT INTO pending_pii (
                 filepath, pii_text, pii_hash, label, 
-                occurrence_index, confidence_score, event_code, status
+                occurrence_index, confidence_score, event_code, status, is_manual
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             filepath, original_text, hashlib.sha256(original_text.encode()).hexdigest(),
-            'GEN-RE', 1, 1.0, 'T3-GIP', 'REDACT'
+            'GEN-RE', 1, 1.0, 'USR-GIP', 'REDACT', 1
         ))
         conn.commit()

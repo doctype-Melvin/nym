@@ -32,7 +32,9 @@ def initialize_vault():
             ('T1-RGX', 'Privacy', 'Tier 1', 'Deterministic REGEX Matching', 'GDPR / DSGVO'),
             ('T2-NER', 'Privacy', 'Tier 2', 'Probabilistic Named Entitiy Recognition', 'GDPR / DSVGO'),
             ('T3-GIP', 'Inclusion', 'Tier 3', 'Linguistic Gender Neutralization', 'AGG / EU AI Act'),
-            ('T3-FLG', 'Inclusion', 'Tier 3', 'Morphological Gender Flagging', 'EU AI Act / D&I')
+            ('T3-FLG', 'Inclusion', 'Tier 3', 'Morphological Gender Flagging', 'EU AI Act / D&I'),
+            ('USR-RED', 'Privacy', 'User', 'Manual Redaction/Labeling', 'GDPR / DSGVO / Data Minimization'),
+            ('USR-GIP', 'Inclusion', 'User', 'Manual gender-neutralization', 'AGG / EU AI Act')
         ]
         # Populate Event Registry table 
         cursor.executemany("INSERT OR IGNORE INTO event_registry VALUES (?, ?, ?, ?, ?)", events)
@@ -130,7 +132,7 @@ def initialize_vault():
                 r.methodology,
                 p.confidence_score
             FROM pending_pii p
-            JOIN event_registry r ON p.event_code = r.event_code
+            LEFT JOIN event_registry r ON p.event_code = r.event_code
             LEFT JOIN job_dict j ON p.pii_text = j.original;
         """)
 

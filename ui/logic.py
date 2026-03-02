@@ -3,43 +3,46 @@ import hashlib
 from collections import defaultdict
 
 def apply_overlay(text, highlighter_df):
-    #Injects <mark> tags into the text based on database detections
-    render_counts = defaultdict(int)
+    from collections import defaultdict
+    import re
 
     def get_ui_class(row):
-        if str(row['status']).lower() == 'exclude':
+        if str(row.get('status', '')).lower() == 'exclude':
             return "pii-excluded"
-        lbl = str(row['category'])
-        if lbl == "GEN-RE": return "gen-resolved"
+        lbl = str(row.get('category', ''))
+        evt = str(row.get('event_code', ''))
+        if lbl == "GEN-RE" or evt == 'USR-GIP': return "gen-resolved"
         if lbl == "GEN-FL": return "gen-flagged"
         return "pii-default"
     
-    # Priority sorting: ensures Neutralized (GEN-RE) takes precedence
-    highlighter_df['priority'] = highlighter_df['category'].apply(
-        lambda x: 1 if x == "GEN-RE" else (2 if x == "GEN-FL" else 3)
-    )
-    sorted_df = highlighter_df.sort_values(by=['pii_text', 'occurrence_index', 'priority'])
-    highlighter_df = sorted_df.drop_duplicates(subset=['pii_text', 'occurrence_index'], keep='first')
+    # 1. PRIORITY: Sort by Manual status, then by length (Longest first)
+    highlighter_df['text_len'] = highlighter_df['pii_text'].str.len()
+    highlighter_df['sort_priority'] = highlighter_df['is_manual'].apply(lambda x: 0 if x == 1 else 1)
+    
+    # group by text to handle each unique word/phrase once
+    # Longest wins - assuming user selection includes system detection
+    sorted_df = highlighter_df.sort_values(
+        by=['sort_priority', 'text_len'], 
+        ascending=[True, False]
+    ).drop_duplicates(subset=['pii_text'])
 
     processed_text = text
-    for word, group in highlighter_df.groupby('pii_text'):
-        render_counts[word] = 0 
-        pattern = rf'(?<!\w){re.escape(word)}(?!\w)'
+    
+    for _, r in sorted_df.iterrows():
+        word = r['pii_text']
+        ui_class = get_ui_class(r)
+        lbl = r['label']
+        arrow = f" <small>→ {lbl}</small>" if lbl not in ["GEN-RE", "GEN-FL", "GENDER"] else ""
         
-        def count_and_replace(match):
-            render_counts[word] += 1
-            match_row = group[group['occurrence_index'] == render_counts[word]]
-            
-            if not match_row.empty:
-                r = match_row.iloc[0]
-                ui_class = get_ui_class(r)
-                lbl = r['label']
-                arrow = f" <small>→ {lbl}</small>" if lbl not in ["GEN-RE", "GEN-FL", "GENDER"] else ""
-                return f'<mark class="{ui_class}" data-id="{r["pii_id"]}">{match.group(0)}{arrow}</mark>'
-            
-            return match.group(0)
-
-        processed_text = re.sub(pattern, count_and_replace, processed_text)
+        # 2. THE PATTERN: 
+        # \b word boundaries
+        # (?![^<]*>) Negative lookahead: "Don't match if the next bracket is a closing one"
+        # This prevents 'Erzieher' from matching if it's already inside '<mark>Erzieher</mark>'
+        pattern = rf'\b{re.escape(word)}\b(?![^<]*>)'
+        
+        replacement = f'<mark class="{ui_class}" data-id="{r["pii_id"]}">{word}{arrow}</mark>'
+        
+        processed_text = re.sub(pattern, replacement, processed_text)
 
     return processed_text
 
