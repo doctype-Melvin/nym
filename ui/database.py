@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 from pathlib import Path
+import hashlib
 
 # Path Configuration
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -70,4 +71,28 @@ def save_manual_tag(filepath, text, label, index, pii_hash):
             INSERT INTO pending_pii (filepath, pii_text, pii_hash, label, occurrence_index, confidence_score, event_code, status, is_manual)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (filepath, text, pii_hash, label, index, 1.0, "USER-UI", 'REDACT', 1))
+        conn.commit()
+
+def save_neutral(filepath, original_text, neutral_text):
+    #Saves a neutral phrase to the global dict and marks it in the current file
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        
+        # 1. Update Global Dictionary (for future hits)
+        cursor.execute("""
+            INSERT OR REPLACE INTO job_dict (original, neutral) 
+            VALUES (?, ?)
+        """, (original_text, neutral_text))
+        
+        # 2. Add to Pending PII (to trigger the UI highlight now)
+        cursor.execute("""
+            INSERT INTO pending_pii (
+                filepath, pii_text, pii_hash, label, 
+                occurrence_index, confidence_score, event_code, status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            filepath, original_text, hashlib.sha256(original_text.encode()).hexdigest(),
+            'GEN-RE', 1, 1.0, 'T3-GIP', 'REDACT'
+        ))
         conn.commit()

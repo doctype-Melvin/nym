@@ -108,6 +108,8 @@ elif st.session_state.app_mode == "Review":
                 else: # Neutralize phrase
                     neutral = st.text_input("Neutrale Formulierung:", placeholder="z.B. ergebnisorientierte Vertriebsfachkraft, ")
                     if st.button("Formulierung hinzufügen"):
+                        phrase = st.session_state.selected_word
+                        db.save_neutral(selected_file, phrase, neutral) #filepath, original_text, neutral_text
                         st.session_state.selected_word = None
                         st.rerun()
                 
