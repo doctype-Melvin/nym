@@ -1,15 +1,13 @@
 import streamlit as st
 from pathlib import Path
 import streamlit.components.v1 as components
-
-# Import our custom modules
 import database as db
 import logic
-from styles import inject_custom_css # We'll create this small one next
+from styles import inject_custom_css
 
-# 1. SETUP
+# 1. SETUP (Only one set_page_config allowed, and it must be first)
 st.set_page_config(page_title="Complyable | Review Portal", layout="wide")
-inject_custom_css() # Keeps your UI professional
+inject_custom_css() 
 db.init_db_schema()
 
 # Paths for the custom JS component
@@ -21,10 +19,12 @@ if "app_mode" not in st.session_state:
     st.session_state.app_mode = "Dashboard"
 if "last_click_id" not in st.session_state:
     st.session_state.last_click_id = None
-if "editing_pii_id" not in st.session_state:
-    st.session_state.editing_pii_id = None
+if "selected_word" not in st.session_state:
+    st.session_state.selected_word = None
+if "selected_id" not in st.session_state:
+    st.session_state.selected_id = None
 
-# 3. SIDEBAR NAVIGATION
+# 3. SIDEBAR NAVIGATION (Global Actions)
 with st.sidebar:
     st.title("🛡️ Complyable")
     if st.button("📊 Dashboard", use_container_width=True):
@@ -32,91 +32,100 @@ with st.sidebar:
     if st.button("✍️ Review Station", use_container_width=True):
         st.session_state.app_mode = "Review"
     st.divider()
+    
+    # We move the file selection here to keep the main area for the editor
+    if st.session_state.app_mode == "Review":
+        df_pending = db.get_pending_data()
+        if not df_pending.empty:
+            file_list = df_pending['filepath'].tolist()
+            selected_file = st.selectbox("Current Document", file_list, format_func=lambda x: Path(x).name)
+            st.divider()
+            if st.button("🚀 Finalize & Export", use_container_width=True):
+                st.warning("Export logic (The Endboss) goes here!")
 
 # 4. VIEW LOGIC
 if st.session_state.app_mode == "Dashboard":
     st.header("📊 Compliance Dashboard")
-    
-    # Upload Section
-    with st.expander("📂 Upload Documents", expanded=True):
-        files = st.file_uploader("Drop PDFs/Markdown", accept_multiple_files=True)
-        if files:
-            # Handle upload logic...
-            st.success("Files uploaded. Trigger KNIME to begin analysis.")
-
-    # Simple Metrics
-    df_pending = db.get_pending_data()
-    st.metric("Pending Reviews", len(df_pending))
+    # ... (Your existing upload/metrics code) ...
 
 elif st.session_state.app_mode == "Review":
     df_pending = db.get_pending_data()
     
     if df_pending.empty:
-        st.success("All caught up! No documents pending review.")
+        st.success("All caught up!")
     else:
         file_list = df_pending['filepath'].tolist()
-        selected_file = st.sidebar.selectbox("Active Document", file_list)
         
-        # UI RENDER
         highlighter_df = db.get_detected_data(selected_file)
         doc_row = df_pending[df_pending['filepath'] == selected_file].iloc[0]
         
         st.subheader(f"Reviewing: {Path(selected_file).name}")
         
-        # Side-by-Side Review
-        col_main, col_preview = st.columns([2, 1])
+        col_main, col_toolbox = st.columns([3, 1])
         
         with col_main:
             rendered_html = logic.apply_overlay(doc_row['markdown'], highlighter_df)
             js_response = overlayer(markdown=rendered_html, key=f"ov_{selected_file}", height=700)
 
-            # Interaction logic
+            # --- YOUR WORKING INTERACTION LOGIC ---
             if js_response:
                 action = js_response.get("action")
                 current_click_id = js_response.get("click_id")
 
                 if current_click_id != st.session_state.last_click_id:
                     st.session_state.last_click_id = current_click_id
+                    # Store the ID and Word so the toolbox can see them
+                    st.session_state.selected_word = js_response.get("word")
+                    st.session_state.selected_id = js_response.get("pii_id")
 
-                    if action == "manual_mark":
-                        st.session_state.selected_word = js_response.get("word")
+                    if action == "toggle":
+                        db.toggle_pii_status(st.session_state.selected_id)
                         st.rerun()
-                    
-                    elif action == "toggle":
-                        db.update_pii_status(js_response.get('pii_id'))
+                    else:
                         st.rerun()
 
-        with col_preview:
-            # Set context in sidebar panel
-            if "selected_word" in st.session_state and st.session_state.selected_word:
-                st.info(f"Selected: **{st.session_state.selected_word}**")
+        with col_toolbox:
+            word = st.session_state.get("selected_word")
+            target_id = st.session_state.get("selected_id")
+            
+            if word: 
+                st.info(f"Target: **{word}**")
+                
+                # 1. Sync Logic (Only for existing detections)
+                if target_id:
+                    current_status = db.get_pii_status(target_id)
+                    others_count = db.get_unsynced_count(selected_file, word, current_status)
 
+                    if others_count > 0:
+                        btn_label = "🚫 Exclude all" if current_status == "EXCLUDE" else "✅ Redact all"
+                        # Only rerun IF the button is pressed
+                        if st.button(f"{btn_label} ({others_count + 1})", use_container_width=True):
+                            db.sync_all_pii_status(selected_file, word, current_status)
+                            st.rerun()  
+                        st.divider()
+
+                # 2. Label/Neutralize Logic (Always visible if a word is selected)
                 choice = st.radio("Action", ["🏷️ Label", "✨ Neutralize (Gender)"])
 
                 if choice == "🏷️ Label":
                     label = st.selectbox("Type: ", ["PERSON", "ADRESSE", "E-MAIL", "TELEFON", "PLZ", "ORT", "WEB"])
-                    if st.button("Add label"):
-                        # Feed into occurence index
-                        word = st.session_state.selected_word
+                    if st.button("Add label", use_container_width=True):
                         pii_hash = logic.create_pii_hash(word)
-
                         idx = doc_row['markdown'].count(word)
                         db.save_manual_tag(selected_file, word, label, idx, pii_hash)
                         st.session_state.selected_word = None
                         st.rerun()
                 
                 else: # Neutralize phrase
-                    neutral = st.text_input("Neutrale Formulierung:", placeholder="z.B. ergebnisorientierte Vertriebsfachkraft, ")
-                    if st.button("Formulierung hinzufügen"):
-                        phrase = st.session_state.selected_word
-                        db.save_neutral(selected_file, phrase, neutral) #filepath, original_text, neutral_text
+                    neutral = st.text_input("Neutrale Formulierung:", placeholder="z.B. Fachkraft")
+                    if st.button("Formulierung hinzufügen", use_container_width=True):
+                        db.save_neutralization(selected_file, word, neutral) 
                         st.session_state.selected_word = None
                         st.rerun()
                 
-                if st.button("Cancel"):
+                st.divider()
+                if st.button("Cancel", use_container_width=True):
                     st.session_state.selected_word = None
                     st.rerun()
-
-            st.caption("🛡️ Live Redaction Preview")
-            redacted = logic.generate_live_redaction(doc_row['markdown'], highlighter_df)
-            st.markdown(redacted)
+            else:
+                st.write("Click a highlight to begin.")

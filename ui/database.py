@@ -56,7 +56,7 @@ def get_detected_data(filepath):
     with sqlite3.connect(DB_PATH) as conn:
         return pd.read_sql("SELECT * FROM ui_highlight WHERE filepath = ?", conn, params=(filepath,))
 
-def update_pii_status(pii_id):
+def toggle_pii_status(pii_id):
     #Toggles REDACT/EXCLUDE for a specific detection.
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
@@ -66,6 +66,47 @@ def update_pii_status(pii_id):
         """, (pii_id,))
         conn.commit()
 
+def toggle_all_pii_status(filepath, text):
+    #Toggles status for ALL instances of a specific text in one file."""
+    with sqlite3.connect(DB_PATH) as conn:
+        # If the first one is REDACT, make them all EXCLUDE, and vice versa.
+        conn.execute("""
+            UPDATE pending_pii 
+            SET status = CASE WHEN status = 'REDACT' THEN 'EXCLUDE' ELSE 'REDACT' END
+            WHERE filepath = ? AND pii_text = ?
+        """, (filepath, text))
+        conn.commit()
+
+def get_occurrence_count(filepath, text):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.execute(
+            "SELECT COUNT(*) FROM pending_pii WHERE filepath = ? AND pii_text = ?", 
+            (filepath, text)
+        )
+        count = cursor.fetchone()[0]
+        return count
+    
+def get_pii_status(pii_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        res = conn.execute("SELECT status FROM pending_pii WHERE pii_id = ?", (pii_id,)).fetchone()
+        return res[0] if res else "REDACT"
+
+def get_unsynced_count(filepath, text, target_status):
+    with sqlite3.connect(DB_PATH) as conn:
+        # Count how many instances ARE NOT currently set to the target_status
+        res = conn.execute("""
+            SELECT COUNT(*) FROM pending_pii 
+            WHERE filepath = ? AND pii_text = ? AND status != ?
+        """, (filepath, text, target_status)).fetchone()
+        return res[0]
+
+def sync_all_pii_status(filepath, text, target_status):
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            UPDATE pending_pii SET status = ? 
+            WHERE filepath = ? AND pii_text = ?
+        """, (target_status, filepath, text))
+
 def save_manual_tag(filepath, text, label, index, pii_hash):
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
@@ -74,7 +115,7 @@ def save_manual_tag(filepath, text, label, index, pii_hash):
         """, (filepath, text, pii_hash, label, index, 1.0, "USR-RED", 'REDACT', 1))
         conn.commit()
 
-def save_neutral(filepath, original_text, neutral_text):
+def save_neutralization(filepath, original_text, neutral_text):
     #Saves a neutral phrase to the global dict and marks it in the current file
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()

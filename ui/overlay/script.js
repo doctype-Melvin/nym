@@ -25,9 +25,11 @@ function attachPIIListeners() {
     marks.forEach(mark => {
         mark.onclick = function() {
             // Send the pii_id back to Python to update the DB
+            const piiWord = this.childNodes[0].nodeValue.trim()
             sendToStreamlit({ 
                 action: "toggle",
                 pii_id: this.getAttribute('data-id'),
+                word: piiWord,
                 click_id: Date.now() 
             });
         };
