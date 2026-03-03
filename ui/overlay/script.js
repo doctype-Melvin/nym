@@ -50,6 +50,7 @@ document.addEventListener('mouseup', () => {
     if (selection && selection.length > 1 && selection.length < 100) {
         sendToStreamlit({ 
             action: "manual_mark",
+            pii_id: null,
             word: selection,
             click_id: Date.now()
         });

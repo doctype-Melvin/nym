@@ -39,27 +39,6 @@ def initialize_vault():
         # Populate Event Registry table 
         cursor.executemany("INSERT OR IGNORE INTO event_registry VALUES (?, ?, ?, ?, ?)", events)
         
-        # Audit Trail
-        # References Event Registry table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS audit_trail (
-                record_uuid TEXT PRIMARY KEY,
-                filepath TEXT,
-                timestamp TEXT,
-                event_code TEXT,
-                pii_hash TEXT,
-                label TEXT,
-                occurrence_index INT,
-                confidence_score REAL,
-                integrity_hash TEXT,
-                commit_uuid TEXT,
-                FOREIGN KEY (event_code) REFERENCES event_registry(event_code)
-                FOREIGN KEY (commit_uuid) REFERENCES final_commit(commit_uuid)
-            )
-        """)
-        # Add index for performance
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_filepath ON audit_trail (filepath)")
-
         # Pending Review (Harmonized)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS pending_review (
@@ -150,6 +129,29 @@ def initialize_vault():
                 compliance_grade TEXT
             )
         """)
+
+        # Audit Trail
+        # References Event Registry table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS audit_trail (
+                record_uuid TEXT PRIMARY KEY,
+                filepath TEXT,
+                timestamp TEXT,
+                user_id TEXT,
+                event_code TEXT,
+                pii_hash TEXT,
+                label TEXT,
+                occurrence_index INT,
+                confidence_score REAL,
+                integrity_hash TEXT,
+                commit_uuid TEXT,
+                FOREIGN KEY (event_code) REFERENCES event_registry(event_code)
+                FOREIGN KEY (commit_uuid) REFERENCES final_commit(commit_uuid)
+            )
+        """)
+
+         # Add index for performance
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_filepath ON audit_trail (filepath)")
 
         # Seeding Logic for initial job title list
         cursor.execute("SELECT COUNT(*) FROM job_dict")

@@ -99,25 +99,22 @@ def apply_overlay(text, highlighter_df):
             r = instances[word].popleft() # Takes the next 'surgical' instance
             ui_class = get_ui_class(r)
             is_excluded = str(r.get('status', '')).upper() == 'EXCLUDE'
+
+            is_gender = r['event_code'] == 'T3-GIP' or r['category'] in ['GEN-FL', 'GEN-RE', 'GENDER']
             
-            arrow = ""
-            if not is_excluded:
-                lbl = r['label']
-                is_gender = r['category'] in ['GEN-FL', 'GEN-RE', 'GENDER']
-                has_sub = lbl != r['category']
-                if not is_gender:
-                    arrow = f" <small>({lbl})</small>"
-                elif is_gender and has_sub:
-                    arrow = f" <small>→ {lbl}</small>"
+            if is_gender and not is_excluded:
+                display_text = f"{word} <small> → ({r['label']})</small>"
+            else:
+                display_text = f"{word} <small>({r['label']})</small>"
             
-            return f'<mark class="{ui_class}" data-id="{r["pii_id"]}">{word}{arrow}</mark>'
+            return f'<mark class="{ui_class}" data-id="{r["pii_id"]}">{display_text}</mark>'
         return word
 
     if not sorted_df.empty:
         # Sort words by length descending to prevent partial matching (e.g., 'Berlin' matching inside 'Berliner')
         all_words = sorted(instances.keys(), key=len, reverse=True)
         pattern_str = '|'.join(map(re.escape, all_words))
-        pattern = rf'(?![^<]*>)\b({pattern_str})\b(?![^<]*>)'
+        pattern = rf'(?![^<]*>)(?<!\w)({pattern_str})(?!\w)(?![^<]*>)'
         text = re.sub(pattern, replace_func, text)
 
     return text
@@ -140,6 +137,26 @@ def generate_live_redaction(text, highlighter_df):
         processed_text = re.sub(pattern, replacement, processed_text)
     
     return processed_text
+
+def generate_final_sanitized_text(original_text, highlighter_df):
+    import re
+    # 1. Only get rows where status != 'EXCLUDE'
+    active_df = highlighter_df[highlighter_df['status'].str.upper() != 'EXCLUDE']
+    
+    # 2. Sort words by length descending to prevent partial matching
+    sorted_words = sorted(active_df['pii_text'].unique(), key=len, reverse=True)
+    
+    final_text = original_text
+    for word in sorted_words:
+        # Find the label (substitution) for this word from the DF
+        # Assuming one substitution per unique word for the final export
+        substitution = active_df[active_df['pii_text'] == word]['label'].iloc[0]
+        
+        # Surtically replace with the neutral title or [REDACTED] label
+        pattern = rf'(?<!\w){re.escape(word)}(?!\w)'
+        final_text = re.sub(pattern, substitution, final_text)
+        
+    return final_text
 
 def create_pii_hash(text):
     return hashlib.sha256(text.encode()).hexdigest()

@@ -49,6 +49,8 @@ for index, row in input_df.iterrows():
     filepath = row['Filepath']
 
     occ_counter = defaultdict(int)
+
+    handle_indices = set()
     
     # 1. Patterns (v1 logic)
     kauf_patterns = [
@@ -97,12 +99,19 @@ for index, row in input_df.iterrows():
                 'status': 'REDACT',
                 'is_manual': 0
             })
+
+            for i in range(match.start(), match.end()):
+                handle_indices.add(i)
             current = re.sub(target, d_row["neutral"], current, flags=re.IGNORECASE)
 
     # 3. Sensor (Linguistic Flagging for what wasn't caught above)
     original_markdown = str(row['Markdown'])
     doc = nlp(original_markdown)
     for token in doc:
+
+        if token.idx in handle_indices:
+            continue
+
         if (token.pos_ in ["NOUN", "PROPN"]):
             morph = token.morph.to_dict()
             gender = morph.get("Gender")

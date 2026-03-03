@@ -2,6 +2,9 @@ import sqlite3
 import pandas as pd
 from pathlib import Path
 import hashlib
+from datetime import datetime
+import os
+import uuid
 
 # Path Configuration
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -90,12 +93,21 @@ def get_pii_status(pii_id):
     with sqlite3.connect(DB_PATH) as conn:
         res = conn.execute("SELECT status FROM pending_pii WHERE pii_id = ?", (pii_id,)).fetchone()
         return res[0] if res else "REDACT"
+    
+def check_if_pii_exists(filepath, text):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.execute("""
+            SELECT 1 FROM pending_pii 
+            WHERE filepath = ? AND pii_text = ? 
+            LIMIT 1
+        """, (filepath, text))
+        return cursor.fetchone() is not None
 
 def get_unsynced_count(filepath, text, target_status):
     with sqlite3.connect(DB_PATH) as conn:
         # Count how many instances ARE NOT currently set to the target_status
         res = conn.execute("""
-            SELECT COUNT(*) FROM pending_pii 
+            SELECT COUNT(DISTINCT pii_id) FROM pending_pii 
             WHERE filepath = ? AND pii_text = ? AND status != ?
         """, (filepath, text, target_status)).fetchone()
         return res[0]
@@ -137,4 +149,43 @@ def save_neutralization(filepath, original_text, neutral_text):
             filepath, original_text, hashlib.sha256(original_text.encode()).hexdigest(),
             'GEN-RE', 1, 1.0, 'USR-GIP', 'REDACT', 1
         ))
+        conn.commit()
+
+def certify_document(filepath, original_text, sanitized_text, avg_confidence, user_id):
+    # 1. Generate Metadata
+    c_uuid = str(uuid.uuid4())
+    hash_orig = hashlib.sha256(original_text.encode()).hexdigest()
+    hash_sani = hashlib.sha256(sanitized_text.encode()).hexdigest()
+    
+    # 2. Map Confidence to a Compliance Grade (Example Logic)
+    grade = "A" if avg_confidence > 0.9 else "B" if avg_confidence > 0.7 else "C"
+
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            INSERT INTO audit_trail (
+                filepath, pii_hash, label, 
+                occurrence_index, confidence_score, event_code, user_id
+            )
+            SELECT 
+                filepath, pii_hash, label, 
+                occurrence_index, confidence_score, event_code, ?
+            FROM pending_pii
+            WHERE filepath = ?
+        """, (user_id, filepath,))
+
+        # 3. Insert into your existing final_commit table
+        conn.execute("""
+            INSERT INTO final_commit (
+                commit_uuid, filepath, filename_sanitized, 
+                hash_original, hash_sanitized, 
+                approval_timestamp, user_id, compliance_grade
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            c_uuid, filepath, os.path.basename(filepath).replace(".pdf", "_sanitized.pdf"),
+            hash_orig, hash_sani,
+            datetime.now(), user_id, grade
+        ))
+        
+        # 4. Clear the workspace for this file
+        conn.execute("DELETE FROM pending_pii WHERE filepath = ?", (filepath,))
         conn.commit()
