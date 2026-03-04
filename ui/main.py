@@ -5,6 +5,7 @@ import database as db
 import logic
 import workflow
 from styles import inject_custom_css
+from st_copy import copy_button
 
 # 1. SETUP (Only one set_page_config allowed, and it must be first)
 st.set_page_config(page_title="Complyable | Review Portal", layout="wide")
@@ -35,7 +36,17 @@ else:
 if "batch_complete" not in st.session_state:
     st.session_state.batch_complete = False
 
-selected_file = file_list[st.session_state.doc_index] if file_list else None
+if not file_list:
+    st.session_state.doc_index = 0
+    selected_file = None
+else:
+    # If the index is out of bounds (which shouldn't happen now), reset it
+    if st.session_state.doc_index >= len(file_list):
+        st.session_state.doc_index = 0
+    
+    selected_file = file_list[st.session_state.doc_index]
+    
+#selected_file = file_list[st.session_state.doc_index] if file_list else None
 
 # 3. SIDEBAR NAVIGATION (Global Actions)
 with st.sidebar:
@@ -46,37 +57,113 @@ with st.sidebar:
     if st.button("✍️ Review Station", use_container_width=True):
         st.session_state.app_mode = "Review"
         st.rerun()
+    if st.button("📁 Output-Ordner öffnen", use_container_width=True):
+        if not logic.open_folder(logic.OUTPUT_DIR):
+            st.error("Ordner existiert noch nicht. Erst einen Batch abschließen!")
+
+    st.caption(f"Speicherort: {logic.OUTPUT_DIR.name}")
     st.divider()
     
     # We move the file selection here to keep the main area for the editor
     if st.session_state.app_mode == "Review" and selected_file:
-        selected_index = st.selectbox(
+
+        selected_path = st.selectbox(
             "Quick Jump", 
-            range(len(file_list)), 
+            options=file_list, 
             index=st.session_state.doc_index,
-            format_func=lambda x: Path(file_list[x]).name
+            format_func=lambda x: Path(x).name,
+            key=f"jump_select_{len(file_list)}" # Adding an explicit key helps Streamlit track state
         )
-        
-        # 2. If the user picks a different file in the dropdown, update the index
-        if selected_index != st.session_state.doc_index:
-            st.session_state.doc_index = selected_index
+    
+        # Update the global doc_index based on the new selection
+        new_index = file_list.index(selected_path)
+        if new_index != st.session_state.doc_index:
+            st.session_state.doc_index = new_index
             st.rerun()
-        if st.button("🚀 Finalize & Export", use_container_width=True):
-                st.warning("Export logic (The Endboss) goes here!")
 
 # 4. VIEW LOGIC
 if st.session_state.app_mode == "Dashboard":
     st.header("📊 Compliance Dashboard")
-    # ... (Your existing upload/metrics code) ...
+        
+    ready_docs = workflow.get_clipboard_stack()
+
+    if not ready_docs:
+        st.info("Keine bereinigten Dokumente vorhanden.")
+    else: 
+        st.write("Liste aller bereinigten Dokumente bereit für den Chatbot")
+
+        cols = st.columns([3, 1, 1])
+        cols[0].write('**Datei**')
+        cols[1].write('')
+        cols[2].write('**Kopieren**')
+
+        for filepath, md_content in ready_docs:
+            filename = Path(filepath).name
+            
+            # 1. Fetch data for this specific file
+            highlighter_df = db.get_detected_data(filepath)
+            audit_id = logic.create_pii_hash(filename)[:8]
+            
+            # 2. Generate the preview text
+            sanitized_text = logic.generate_final_sanitized_text(md_content, highlighter_df)
+            final_clip = f"{sanitized_text}\n\n--- Complyable Audit ID: {audit_id} ---"      
+
+            row_cols = st.columns([4, 1])
+            # 3. Wrap the row in an Expander
+            with row_cols[0]:
+                with st.expander(f"{filename} | Audit ID: {audit_id}"):
+                    st.text_area("Vorschau", sanitized_text, height=500, disabled=True, key=f"area_{filename}")
+                
+            with row_cols[1]:
+                    copy_button(final_clip, icon='st', copied_label="Kopiert!", key=f"copy_{filename}")
+                    # Potential future "Download PDF" button here
+
+        # for filepath, md_content in ready_docs:
+        #     row_cols = st.columns([3, 1, 1])
+        #     filename = Path(filepath).name
+
+        #     highlighter_df = db.get_detected_data(filepath)
+            
+        #     audit_id = logic.create_pii_hash(filename)[:8]
+        #     sanitized_text = logic.generate_final_sanitized_text(md_content, highlighter_df)
+        #     final_clip = f"{sanitized_text}\n\n--- Complyable Audit ID: {audit_id} ---"      
+
+        #     with row_cols[0]:
+        #         st.markdown(f"**{filename}**")
+            
+        #     with row_cols[1]:
+        #         # We know it's ready because the query only fetches 'READY' docs
+        #         st.caption("✅ Ready")
+            
+        #     with row_cols[2]:
+        #         copy_button(final_clip, icon='st', copied_label="Text kopiert!", key=f"copy_{filename}")
+
+        st.divider()
+        if st.button("📦 Alle archivieren", type="primary", use_container_width=True):
+            with st.spinner("Zertifikate werden generiert..."):
+                success = workflow.archive_ready_batch()
+                if success:
+                    st.success("Batch erfolgreich archiviert! Zertifikate liegen im Zielordner")
+                    st.rerun()
+                else: 
+                    st.warning("Keine Dokumente zum Archivieren gefunden.")
 
 elif st.session_state.app_mode == "Review":    
     if not file_list:
-        st.success("All caught up!")
-    else:        
+        st.info("✨ **Alle Dokumente sind geprüft!**")
+    
+    else: 
+        current_rows = df_pending[df_pending['filepath'] == selected_file] 
+
+        if current_rows.empty:
+            st.session_state.doc_index = 0
+            st.rerun()
+            st.stop()
+
+        doc_row = current_rows.iloc[0]
         highlighter_df = db.get_detected_data(selected_file)
-        doc_row = df_pending[df_pending['filepath'] == selected_file].iloc[0]
-        
-        
+            
+            
         nav_prev, nav_status, nav_next = st.columns([1, 2, 1])
 
         with nav_prev:
@@ -85,13 +172,22 @@ elif st.session_state.app_mode == "Review":
                 st.rerun()
 
         with nav_status:
-            st.markdown(f"**CV {st.session_state.doc_index + 1} / {st.session_state.total_files}**")
+            st.markdown(f"**Dokument {st.session_state.doc_index + 1} / {st.session_state.total_files}**")
 
         with nav_next:
-            if st.button("✅ CERTIFY & NEXT", type="primary"):
+            if st.button("✅ Bereinigt", type="primary"):
                 # The 'Heavy Lifting' is now hidden in the workflow module
-                workflow.handle_certification(selected_file, doc_row['markdown'], highlighter_df, user_id="DEV_")
-                workflow.move_next()
+                workflow.mark_document_ready(selected_file)
+                st.session_state.doc_index = 0
+
+                if len(file_list) <= 1:
+                    st.session_state.app_mode = "Dashboard"
+                    st.toast("All documents reviewed!")
+                # else:
+                #     st.session_state.doc_index = 0
+                #     st.session_state.app_mode = "Dashboard"
+                #     st.toast("Alles bereinigt!")
+                st.toast("Dokument ist bereinigt!")
                 st.rerun()
 
         col_main, col_toolbox = st.columns([3, 1])

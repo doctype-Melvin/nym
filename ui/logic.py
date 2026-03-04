@@ -1,72 +1,15 @@
 import re
 import hashlib
 from collections import defaultdict
+from datetime import datetime
+import os
+from fpdf import FPDF
+from pathlib import Path
+import subprocess
+import platform
 
-# def apply_overlay(text, highlighter_df):
-#     from collections import defaultdict
-#     import re
-
-#     def get_ui_class(row):
-#         # 1. Check for Exclusions
-#         if str(row.get('status', '')).lower() == 'exclude':
-#             return "pii-excluded"
-        
-#         # 2. Check if it's a Resolved Gender term
-#         # If 'label' doesn't match the standard 'GEN-FL' or 'PERSON' tags, 
-#         # it means COALESCE picked up a neutral substitution.
-#         lbl = str(row.get('label', ''))
-#         cat = str(row.get('category', ''))
-#         evt = str(row.get('event_code', ''))
-        
-#         if evt == 'USR-GIP' or cat == 'GEN-RE' or (cat == 'GEN-FL' and lbl != cat):
-#             return "gen-resolved"
-        
-#         if cat == 'GEN-FL':
-#             return "gen-flagged"
-            
-#         # 3. Default PII Style (Yellow)
-#         return "pii-default"
-    
-#     # Priority: Manual actions (is_manual=1) first, then length
-#     highlighter_df['text_len'] = highlighter_df['pii_text'].str.len()
-#     highlighter_df['sort_priority'] = highlighter_df['is_manual'].apply(lambda x: 0 if x == 1 else 1)
-    
-#     sorted_df = highlighter_df.sort_values(
-#         by=['sort_priority', 'text_len'], 
-#         ascending=[True, False]
-#     ).drop_duplicates(subset=['pii_text'])
-
-#     processed_text = text
-    
-#     for _, r in sorted_df.iterrows():
-#         word = r['pii_text']
-#         ui_class = get_ui_class(r)
-
-#         is_excluded = str(r.get('status', '')).upper() == 'EXCLUDE'
-      
-#         # Logic for the arrow suffix:
-#         # Show arrow if it's PII (to show the label) 
-#         # OR if it's a Gender term that has a custom neutral word
-        
-#         arrow = ""
-#         if not is_excluded:
-#             lbl = r['label']
-#             is_gender = r['category'] in ['GEN-FL', 'GEN-RE', 'GENDER']
-#             has_substitution = lbl != r['category']
-
-#             if not is_gender:
-#                 arrow = f" <small>({lbl})</small>"
-#             elif is_gender and has_substitution:
-#                 arrow = f" <small>→ {lbl}</small>"
-        
-#         # Global replace with the 'Shield' lookahead
-#         #pattern = rf'\b{re.escape(word)}\b(?![^<]*>)'
-#         pattern = rf'(?![^<]*>){re.escape(word)}(?![^<]*>)'
-#         replacement = f'<mark class="{ui_class}" data-id="{r["pii_id"]}">{word}{arrow}</mark>'
-        
-#         processed_text = re.sub(pattern, replacement, processed_text)
-
-#     return processed_text
+BASE_DIR = Path(__file__).resolve().parent.parent
+OUTPUT_DIR = BASE_DIR / "data" / "output"
 
 def apply_overlay(text, highlighter_df):
     import re
@@ -160,3 +103,62 @@ def generate_final_sanitized_text(original_text, highlighter_df):
 
 def create_pii_hash(text):
     return hashlib.sha256(text.encode()).hexdigest()
+
+def clean_for_pdf(text):
+    return text.encode("latin-1", "ignore").decode("latin-1")
+
+def generate_pdf_certificate(filepath, user_id, audit_id, save_path):
+    
+    filename = os.path.basename(filepath)
+    pdf_path = save_path
+
+    # 2. Create PDF Object
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+
+    # 3. Header & Branding
+    pdf.cell(0, 10, "Complyable: Certificate of Redaction", ln=True, align='C')
+    pdf.ln(10)
+
+    # 4. Certificate Body (The Evidence)
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(0, 10, f"Audit ID: {audit_id}", ln=True)
+    pdf.cell(0, 10, f"Original File: {filename}", ln=True)
+    pdf.cell(0, 10, f"Certified By: {user_id}", ln=True)
+    pdf.cell(0, 10, f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
+    pdf.ln(5)
+    
+    pdf.set_font("Arial", 'I', 10)
+    pdf.multi_cell(0, 10, "This document confirms that the original file was processed according to EU AI Act compliance standards. All personal identifying information (PII) has been redacted or neutralized before being passed to AI processing modules.")
+
+    # 5. Save Output
+    pdf.output(pdf_path)
+    return pdf_path
+
+def generate_redacted_pdf(sanitized_text, save_path):
+    safe_text = clean_for_pdf(sanitized_text)
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=11)
+    
+    # multi_cell handles line breaks automatically
+    # w=0 means it stretches to the right margin
+    pdf.multi_cell(0, 8, safe_text)
+    
+    pdf.output(str(save_path))
+    return save_path
+
+def open_folder(path):
+    path = os.path.abspath(path)
+    if not os.path.exists(path):
+        return False
+    
+    if platform.system() == "Windows":
+        os.startfile(path)
+    elif platform.system() == "Darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(['xdg-open', path])
+    return True

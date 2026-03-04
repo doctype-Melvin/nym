@@ -102,6 +102,15 @@ def check_if_pii_exists(filepath, text):
             LIMIT 1
         """, (filepath, text))
         return cursor.fetchone() is not None
+    
+def update_substitution(self, row_id, substitution_text):
+    query = """
+    UPDATE pending_pii 
+    SET substitution = ?, 
+        event_code = 'USR-GIP' 
+    WHERE id = ?
+    """
+    self.execute_query(query, (substitution_text, row_id))
 
 def get_unsynced_count(filepath, text, target_status):
     with sqlite3.connect(DB_PATH) as conn:
@@ -151,6 +160,70 @@ def save_neutralization(filepath, original_text, neutral_text):
         ))
         conn.commit()
 
+# def save_neutralization(filepath, original_text, neutral_text):
+#     with sqlite3.connect(DB_PATH) as conn:
+#         cursor = conn.cursor()
+        
+#         # 1. THE CLEANUP: Delete any GEN-FL flags that are part of this phrase
+#         # This removes the "Yellow" so the "Green" can show up.
+#         cursor.execute("""
+#             DELETE FROM pending_pii 
+#             WHERE filepath = ? 
+#             AND ? LIKE '%' || pii_text || '%'
+#             AND label = 'GEN-FL'
+#         """, (filepath, original_text))
+        
+#         # 2. Update Global Dictionary (Your system "learns")
+#         cursor.execute("""
+#             INSERT OR REPLACE INTO job_dict (original, neutral) 
+#             VALUES (?, ?)
+#         """, (original_text, neutral_text))
+        
+#         # 3. Add the new GEN-RE record (Your "Green" highlight)
+#         cursor.execute("""
+#             INSERT INTO pending_pii (
+#                 filepath, pii_text, pii_hash, label, 
+#                 occurrence_index, confidence_score, event_code, status, is_manual
+#             )
+#             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+#         """, (
+#             filepath, original_text, hashlib.sha256(original_text.encode()).hexdigest(),
+#             'GEN-RE', 1, 1.0, 'USR-GIP', 'REDACT', 1
+#         ))
+#         conn.commit()
+
+def upgrade_flag_to_replacement(row_id, substitution_text):
+    # Converts an AI Flag (GEN-FL) into a User Replacement (GEN-RE).
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE pending_pii 
+            SET label = 'GEN-RE',
+                substitution = ?,
+                event_code = 'USR-GIP',
+                status = 'REDACT'
+            WHERE id = ?
+        """, (substitution_text, row_id))
+        conn.commit()
+
+def mark_as_ready(filepath):
+    """Updates status so document moves to the Clipboard Lounge."""
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            "UPDATE pending_review SET status = 'READY' WHERE filepath = ?",
+            (filepath,)
+        )
+        conn.commit()
+
+def get_ready_for_clipboard():
+    """Fetches all documents waiting in the Dashboard."""
+    with sqlite3.connect(DB_PATH) as conn:
+        # We return the filepath and the markdown (to generate the sanitized text)
+        cursor = conn.execute(
+            "SELECT filepath, markdown FROM pending_review WHERE status = 'READY'"
+        )
+        return cursor.fetchall()
+
 def certify_document(filepath, original_text, sanitized_text, avg_confidence, user_id):
     # 1. Generate Metadata
     c_uuid = str(uuid.uuid4())
@@ -187,5 +260,7 @@ def certify_document(filepath, original_text, sanitized_text, avg_confidence, us
         ))
         
         # 4. Clear the workspace for this file
+        conn.execute("DELETE FROM pending_review WHERE filepath = ?", (filepath,))
         conn.execute("DELETE FROM pending_pii WHERE filepath = ?", (filepath,))
         conn.commit()
+
