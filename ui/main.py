@@ -112,15 +112,13 @@ if st.session_state.app_mode == "Dashboard":
                 for file in uploaded_files:
                     logic.stage_uploaded_file(file)                    
 
-                st.session_state.workflow_running = True
                 success, message = logic.trigger_pipeline(str(logic.INPUT_DIR))
 
                 if success:
-                    st.success("Prozess abgeschlossen!")
+                    st.success(message)
                 else:
                     st.error(f"Fehler {message}")
                     st.code(message)
-                st.session_state.workflow_running = False
                 st.rerun()
     else: 
         if st.button("📦 Alle archivieren", type="primary", key='top'):
