@@ -10,6 +10,7 @@ import platform
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = BASE_DIR / "data" / "output"
+INPUT_DIR = BASE_DIR / "data" / "input"
 
 def apply_overlay(text, highlighter_df):
     import re
@@ -176,3 +177,12 @@ def open_folder(path):
     else:
         subprocess.Popen(['xdg-open', path])
     return True
+
+def stage_uploaded_file(uploaded_file): # copy uploaded file to input folder
+    os.makedirs(INPUT_DIR, exist_ok=True)
+    target_path = INPUT_DIR / uploaded_file.name
+
+    with open(target_path, "wb") as file:
+        file.write(uploaded_file.getbuffer())
+    
+    return str(target_path)

@@ -6,6 +6,9 @@ import logic
 import workflow
 from styles import inject_custom_css
 from st_copy import copy_button
+import os
+import shutil
+
 
 # 1. SETUP (Only one set_page_config allowed, and it must be first)
 st.set_page_config(page_title="Complyable | Review Portal", layout="wide")
@@ -85,13 +88,33 @@ with st.sidebar:
 
 # 4. VIEW LOGIC
 if st.session_state.app_mode == "Dashboard":
-    st.header("📊 Bereinigte Dateien")
+    is_busy = st.session_state.get("workflow_running", False)
 
-        
+    if is_busy:
+        st.warning("Workflow läuft. Bitte warten.")
+    
+
+    st.header("📊 Bereinigte Dateien")        
     ready_docs = workflow.get_clipboard_stack()
 
     if not ready_docs:
         st.info("Keine bereinigten Dokumente vorhanden.")
+        uploaded_files = st.file_uploader(
+                "Neue Dokumente ablegen",
+                accept_multiple_files = True,
+                disabled=is_busy
+            )
+
+        if uploaded_files and not is_busy:
+            if st.button("Prozess starten"):
+                for file in uploaded_files:
+                    logic.stage_uploaded_file(file)
+                    
+                st.session_state.workflow_running = True
+
+                st.info("KNIME wird hier getriggert")
+                # workflow.run_knime()
+                st.rerun()
     else: 
         if st.button("📦 Alle archivieren", type="primary", key='top'):
                 with st.spinner("Zertifikate werden generiert..."):
@@ -153,6 +176,25 @@ if st.session_state.app_mode == "Dashboard":
         #         copy_button(final_clip, icon='st', copied_label="Text kopiert!", key=f"copy_{filename}")
 
         st.divider()
+        
+        uploaded_files = st.file_uploader(
+                "Neue Dokumente ablegen",
+                accept_multiple_files = True,
+                disabled=is_busy
+            )
+
+        if uploaded_files and not is_busy:
+            if st.button("Prozess starten"):
+                for file in uploaded_files:
+                    logic.stage_uploaded_file(file)
+                    
+                st.session_state.workflow_running = True
+
+                st.info("KNIME wird hier getriggert")
+                # workflow.run_knime()
+                st.rerun()
+       
+
         # if st.button("📦 Alle archivieren", type="primary", use_container_width=True):
         #     with st.spinner("Zertifikate werden generiert..."):
         #         success = workflow.archive_ready_batch()
