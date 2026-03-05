@@ -11,6 +11,8 @@ import platform
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = BASE_DIR / "data" / "output"
 INPUT_DIR = BASE_DIR / "data" / "input"
+WORKFLOW_PATH = BASE_DIR / "knime"
+KNIME_EXE = os.getenv("KNIME_PATH", r"/Applications/KNIME 5.4.2.app/Contents/MacOS/knime")
 
 def apply_overlay(text, highlighter_df):
     import re
@@ -186,3 +188,27 @@ def stage_uploaded_file(uploaded_file): # copy uploaded file to input folder
         file.write(uploaded_file.getbuffer())
     
     return str(target_path)
+
+def trigger_knime():
+    #KNIME_EXE = r"/Applications/KNIME 5.4.2.app/Contents/MacOS/knime"
+    input_abs_path = os.path.abspath(INPUT_DIR)
+    print(f"Trigger {input_abs_path}")
+
+    cmd = [
+        KNIME_EXE,
+        "-nosplash",
+        "-application",
+        "org.knime.product.KNIME_BATCH_APPLICATION",
+        "-workflowFile=" + str(WORKFLOW_PATH / "core-v1.knwf"),
+        "-reset",
+        f"-workflow.variable=input_folder_path,{input_abs_path},String"
+    ]
+
+    try:
+        # Run and wait for it to finish
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return True, result.stdout
+    except subprocess.CalledProcessError as e:
+        return False, e.stderr
+    except FileNotFoundError:
+        return False, f"Knime exe not found at {KNIME_EXE}"

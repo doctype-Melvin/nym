@@ -40,6 +40,8 @@ if "batch_complete" not in st.session_state:
     st.session_state.batch_complete = False
 if "last_ready_file" not in st.session_state:
     st.session_state.last_ready_file = None
+if "workflow_running" not in st.session_state:
+    st.session_state.workflow_running = False
 
 if not file_list:
     st.session_state.doc_index = 0
@@ -88,7 +90,7 @@ with st.sidebar:
 
 # 4. VIEW LOGIC
 if st.session_state.app_mode == "Dashboard":
-    is_busy = st.session_state.get("workflow_running", False)
+    is_busy = st.session_state.workflow_running
 
     if is_busy:
         st.warning("Workflow läuft. Bitte warten.")
@@ -112,8 +114,14 @@ if st.session_state.app_mode == "Dashboard":
                     
                 st.session_state.workflow_running = True
 
-                st.info("KNIME wird hier getriggert")
-                # workflow.run_knime()
+                success, message = logic.trigger_knime()
+
+                if success:
+                    st.session_state.workflow_running = False
+                    st.success("Prozess abgeschlossen!")
+                else:
+                    st.session_state.workflow_running = False
+                    st.success(f"Fehler {message}")
                 st.rerun()
     else: 
         if st.button("📦 Alle archivieren", type="primary", key='top'):
@@ -184,15 +192,24 @@ if st.session_state.app_mode == "Dashboard":
             )
 
         if uploaded_files and not is_busy:
-            if st.button("Prozess starten"):
+            st.session_state.workflow_running = True
+
+            with st.status("Verarbeitung läuft...", expanded=True) as status:
+
                 for file in uploaded_files:
                     logic.stage_uploaded_file(file)
-                    
-                st.session_state.workflow_running = True
 
                 st.info("KNIME wird hier getriggert")
-                # workflow.run_knime()
-                st.rerun()
+                success, logs = workflow.run_knime_workflow()
+
+                if success: 
+                    status.update(label="Verarbeitung abgeschlssen!", state="complete")
+                else:
+                    st.error(f"KNIME Fehler: {logs}")
+
+            st.session_state.workflow_running = False
+
+            st.rerun()
        
 
         # if st.button("📦 Alle archivieren", type="primary", use_container_width=True):
@@ -204,7 +221,11 @@ if st.session_state.app_mode == "Dashboard":
         #         else: 
         #             st.warning("Keine Dokumente zum Archivieren gefunden.")
 
-elif st.session_state.app_mode == "Review":    
+elif st.session_state.app_mode == "Review":
+    is_busy = st.session_state.workflow_running
+
+    if is_busy:
+        st.warning("Workflow läuft. Bitte warten.")  
     if not file_list:
         st.info("✨ **Alle Dokumente sind geprüft!**")
     
