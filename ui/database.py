@@ -206,12 +206,12 @@ def upgrade_flag_to_replacement(row_id, substitution_text):
         """, (substitution_text, row_id))
         conn.commit()
 
-def mark_as_ready(filepath):
-    """Updates status so document moves to the Clipboard Lounge."""
+def mark_as_ready(filepath, status='READY'):
+    # Can toggle between database state 'ready' or 'pending'
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
-            "UPDATE pending_review SET status = 'READY' WHERE filepath = ?",
-            (filepath,)
+            "UPDATE pending_review SET status = ? WHERE filepath = ?",
+            (status, filepath)
         )
         conn.commit()
 

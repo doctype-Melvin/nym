@@ -81,6 +81,15 @@ def generate_live_redaction(text, highlighter_df):
     
     return processed_text
 
+def strip_ui_labels(text):
+    #Purges UI-injected markers so we can match the raw document text
+    if not text:
+        return text
+    # Removes " → (LABEL)" and any HTML tags like <small>
+    clean = re.sub(r'\s*→\s*\(.*?\)', '', text)
+    clean = re.sub(r'<[^>]*>', '', clean)
+    return clean.strip()
+
 def generate_final_sanitized_text(original_text, highlighter_df):
     import re
     # 1. Only get rows where status != 'EXCLUDE'
@@ -91,6 +100,11 @@ def generate_final_sanitized_text(original_text, highlighter_df):
     
     final_text = original_text
     for word in sorted_words:
+        row = active_df[active_df['pii_text'] == word].iloc[0]
+        category = row.get('category', '')
+
+        if category == 'GEN-FL':
+            continue
         # Find the label (substitution) for this word from the DF
         # Assuming one substitution per unique word for the final export
         substitution = active_df[active_df['pii_text'] == word]['label'].iloc[0]

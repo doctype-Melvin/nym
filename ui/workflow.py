@@ -41,8 +41,8 @@ def move_back():
     if st.session_state.doc_index > 0:
         st.session_state.doc_index -= 1
 
-def mark_document_ready(filepath):
-    db.mark_as_ready(filepath)
+def mark_document_ready(filepath, status):
+    db.mark_as_ready(filepath, status)
 
 def get_clipboard_stack():
     return db.get_ready_for_clipboard()

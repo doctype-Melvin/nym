@@ -35,6 +35,8 @@ else:
     st.session_state.total_files = len(file_list)
 if "batch_complete" not in st.session_state:
     st.session_state.batch_complete = False
+if "last_ready_file" not in st.session_state:
+    st.session_state.last_ready_file = None
 
 if not file_list:
     st.session_state.doc_index = 0
@@ -83,19 +85,26 @@ with st.sidebar:
 
 # 4. VIEW LOGIC
 if st.session_state.app_mode == "Dashboard":
-    st.header("📊 Compliance Dashboard")
+    st.header("📊 Bereinigte Dateien")
+
         
     ready_docs = workflow.get_clipboard_stack()
 
     if not ready_docs:
         st.info("Keine bereinigten Dokumente vorhanden.")
     else: 
-        st.write("Liste aller bereinigten Dokumente bereit für den Chatbot")
-
-        cols = st.columns([3, 1, 1])
+        if st.button("📦 Alle archivieren", type="primary", key='top'):
+                with st.spinner("Zertifikate werden generiert..."):
+                    success = workflow.archive_ready_batch()
+                    if success:
+                        st.success("Batch erfolgreich archiviert! Zertifikate liegen im Zielordner")
+                        st.rerun()
+                    else: 
+                        st.warning("Keine Dokumente zum Archivieren gefunden.")
+        cols = st.columns([3, 1, 1, 1])
         cols[0].write('**Datei**')
         cols[1].write('')
-        cols[2].write('**Kopieren**')
+        cols[2].write('**Aktionen**')
 
         for filepath, md_content in ready_docs:
             filename = Path(filepath).name
@@ -108,7 +117,7 @@ if st.session_state.app_mode == "Dashboard":
             sanitized_text = logic.generate_final_sanitized_text(md_content, highlighter_df)
             final_clip = f"{sanitized_text}\n\n--- Complyable Audit ID: {audit_id} ---"      
 
-            row_cols = st.columns([4, 1])
+            row_cols = st.columns([4, 1, 1])
             # 3. Wrap the row in an Expander
             with row_cols[0]:
                 with st.expander(f"{filename} | Audit ID: {audit_id}"):
@@ -117,6 +126,11 @@ if st.session_state.app_mode == "Dashboard":
             with row_cols[1]:
                     copy_button(final_clip, icon='st', copied_label="Kopiert!", key=f"copy_{filename}")
                     # Potential future "Download PDF" button here
+            with row_cols[2]:
+                if st.button("Überarbeiten", key=f"revert_{audit_id}"):
+                    workflow.mark_document_ready(filepath, 'PENDING')
+                    st.rerun()
+
 
         # for filepath, md_content in ready_docs:
         #     row_cols = st.columns([3, 1, 1])
@@ -139,14 +153,14 @@ if st.session_state.app_mode == "Dashboard":
         #         copy_button(final_clip, icon='st', copied_label="Text kopiert!", key=f"copy_{filename}")
 
         st.divider()
-        if st.button("📦 Alle archivieren", type="primary", use_container_width=True):
-            with st.spinner("Zertifikate werden generiert..."):
-                success = workflow.archive_ready_batch()
-                if success:
-                    st.success("Batch erfolgreich archiviert! Zertifikate liegen im Zielordner")
-                    st.rerun()
-                else: 
-                    st.warning("Keine Dokumente zum Archivieren gefunden.")
+        # if st.button("📦 Alle archivieren", type="primary", use_container_width=True):
+        #     with st.spinner("Zertifikate werden generiert..."):
+        #         success = workflow.archive_ready_batch()
+        #         if success:
+        #             st.success("Batch erfolgreich archiviert! Zertifikate liegen im Zielordner")
+        #             st.rerun()
+        #         else: 
+        #             st.warning("Keine Dokumente zum Archivieren gefunden.")
 
 elif st.session_state.app_mode == "Review":    
     if not file_list:
@@ -167,8 +181,11 @@ elif st.session_state.app_mode == "Review":
         nav_prev, nav_status, nav_next = st.columns([1, 2, 1])
 
         with nav_prev:
-            if st.button("⬅️ Back", disabled=(st.session_state.doc_index == 0)):
-                workflow.move_back()
+            if st.button("⬅️ Zurück", disabled=(not st.session_state.last_ready_file)):
+                if st.session_state.last_ready_file:
+                    workflow.mark_document_ready(st.session_state.last_ready_file, 'PENDING')
+                    st.session_state.last_ready_file = None
+                #workflow.move_back()
                 st.rerun()
 
         with nav_status:
@@ -176,8 +193,8 @@ elif st.session_state.app_mode == "Review":
 
         with nav_next:
             if st.button("✅ Bereinigt", type="primary"):
-                # The 'Heavy Lifting' is now hidden in the workflow module
-                workflow.mark_document_ready(selected_file)
+                st.session_state.last_ready_file = selected_file
+                workflow.mark_document_ready(selected_file, 'READY')
                 st.session_state.doc_index = 0
 
                 if len(file_list) <= 1:
@@ -213,7 +230,8 @@ elif st.session_state.app_mode == "Review":
                         st.rerun()
 
         with col_toolbox:
-            word = st.session_state.get("selected_word")
+            grab_state = st.session_state.get("selected_word")
+            word = logic.strip_ui_labels(grab_state)
             target_id = st.session_state.get("selected_id")
             
             if word: 
