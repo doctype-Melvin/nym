@@ -7,6 +7,7 @@ from fpdf import FPDF
 from pathlib import Path
 import subprocess
 import platform
+from pipeline import run_pipeline
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = BASE_DIR / "data" / "output"
@@ -189,26 +190,30 @@ def stage_uploaded_file(uploaded_file): # copy uploaded file to input folder
     
     return str(target_path)
 
-def trigger_knime():
-    #KNIME_EXE = r"/Applications/KNIME 5.4.2.app/Contents/MacOS/knime"
-    input_abs_path = os.path.abspath(INPUT_DIR)
-    print(f"Trigger {input_abs_path}")
+# def trigger_knime():
+#     #KNIME_EXE = r"/Applications/KNIME 5.4.2.app/Contents/Eclipse/knime" 
+#     # input_abs_path = os.path.abspath(INPUT_DIR)
+#     input_abs_path = INPUT_DIR
+  
 
-    cmd = [
-        KNIME_EXE,
-        "-nosplash",
-        "-application",
-        "org.knime.product.KNIME_BATCH_APPLICATION",
-        "-workflowFile=" + str(WORKFLOW_PATH / "core-v1.knwf"),
-        "-reset",
-        f"-workflow.variable=input_folder_path,{input_abs_path},String"
-    ]
+#     cmd = [
+#         KNIME_EXE,
+#         "-nosplash",
+#         "-consolelog",
+#         "-application", "org.knime.product.KNIME_BATCH_APPLICATION",
+#         "-workflowFile=" + str(WORKFLOW_PATH / "core-v1.knwf"),
+#         "-reset",
+#         f"-workflow.variable=input_folder_path,{input_abs_path},String"
+#     ]
 
-    try:
-        # Run and wait for it to finish
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        return True, result.stdout
-    except subprocess.CalledProcessError as e:
-        return False, e.stderr
-    except FileNotFoundError:
-        return False, f"Knime exe not found at {KNIME_EXE}"
+#     try:
+#         # Run and wait for it to finish
+#         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+#         return True, result.stdout
+#     except subprocess.CalledProcessError as e:
+#         return False, e.stderr
+#     except subprocess.TimeoutExpired:
+#         return False, f"Knime time out"
+
+def trigger_pipeline(dir):
+   return run_pipeline(dir)
