@@ -22,8 +22,9 @@ from docling.document_converter import DocumentConverter
 load_dotenv()
 
 # --- CONFIG ---
-DB_PATH = os.getenv('DB_PATH', "../complyable_app/data/vault/complyable_vault.db")
-CSV_PATH = os.getenv('CSV_PATH', "../complyable_app/data/refs/dict_seed.csv")
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_PATH = str(BASE_DIR / "data" / "vault" / "complyable_vault.db")
+CSV_PATH = str(BASE_DIR / "data" / "refs" / "dict_seed.csv")
 
 # Load spaCy once at module level — expensive, only do it once
 print("[Pipeline] Loading spaCy model...")

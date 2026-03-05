@@ -8,12 +8,14 @@ from pathlib import Path
 import subprocess
 import platform
 from pipeline import run_pipeline
+import unicodedata
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 OUTPUT_DIR = BASE_DIR / "data" / "output"
 INPUT_DIR = BASE_DIR / "data" / "input"
 WORKFLOW_PATH = BASE_DIR / "knime"
 KNIME_EXE = os.getenv("KNIME_PATH", r"/Applications/KNIME 5.4.2.app/Contents/MacOS/knime")
+UNICODE_FONT = '/Library/Fonts/Arial Unicode.ttf'
 
 def apply_overlay(text, highlighter_df):
     import re
@@ -122,49 +124,31 @@ def generate_final_sanitized_text(original_text, highlighter_df):
 def create_pii_hash(text):
     return hashlib.sha256(text.encode()).hexdigest()
 
-def clean_for_pdf(text):
-    return text.encode("latin-1", "ignore").decode("latin-1")
-
 def generate_pdf_certificate(filepath, user_id, audit_id, save_path):
-    
     filename = os.path.basename(filepath)
-    pdf_path = save_path
-
-    # 2. Create PDF Object
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
-
-    # 3. Header & Branding
+    pdf.add_font('ArialUnicode', '', UNICODE_FONT, uni=True)
+    pdf.set_font('ArialUnicode', size=16)
     pdf.cell(0, 10, "Complyable: Certificate of Redaction", ln=True, align='C')
     pdf.ln(10)
-
-    # 4. Certificate Body (The Evidence)
-    pdf.set_font("Arial", '', 12)
+    pdf.set_font('ArialUnicode', size=12)
     pdf.cell(0, 10, f"Audit ID: {audit_id}", ln=True)
     pdf.cell(0, 10, f"Original File: {filename}", ln=True)
     pdf.cell(0, 10, f"Certified By: {user_id}", ln=True)
     pdf.cell(0, 10, f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
     pdf.ln(5)
-    
-    pdf.set_font("Arial", 'I', 10)
+    pdf.set_font('ArialUnicode', size=10)
     pdf.multi_cell(0, 10, "This document confirms that the original file was processed according to EU AI Act compliance standards. All personal identifying information (PII) has been redacted or neutralized before being passed to AI processing modules.")
-
-    # 5. Save Output
-    pdf.output(pdf_path)
-    return pdf_path
+    pdf.output(str(save_path))
+    return save_path
 
 def generate_redacted_pdf(sanitized_text, save_path):
-    safe_text = clean_for_pdf(sanitized_text)
-
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", size=11)
-    
-    # multi_cell handles line breaks automatically
-    # w=0 means it stretches to the right margin
-    pdf.multi_cell(0, 8, safe_text)
-    
+    pdf.add_font('ArialUnicode', '', UNICODE_FONT, uni=True)
+    pdf.set_font('ArialUnicode', size=11)
+    pdf.multi_cell(0, 8, sanitized_text)
     pdf.output(str(save_path))
     return save_path
 
