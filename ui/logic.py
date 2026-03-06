@@ -15,7 +15,7 @@ OUTPUT_DIR = BASE_DIR / "data" / "output"
 INPUT_DIR = BASE_DIR / "data" / "input"
 WORKFLOW_PATH = BASE_DIR / "knime"
 KNIME_EXE = os.getenv("KNIME_PATH", r"/Applications/KNIME 5.4.2.app/Contents/MacOS/knime")
-UNICODE_FONT = '/Library/Fonts/Arial Unicode.ttf'
+UNICODE_FONT = os.getenv('FONT_PATH', '/Library/Fonts/Arial Unicode.ttf')
 
 def apply_overlay(text, highlighter_df):
     import re
@@ -27,9 +27,9 @@ def apply_overlay(text, highlighter_df):
         lbl = str(row.get('label', ''))
         cat = str(row.get('category', ''))
         evt = str(row.get('event_code', ''))
-        if evt == 'USR-GIP' or cat == 'GEN-RE' or (cat == 'GEN-FL' and lbl != cat):
+        if evt in ('USR-GIP', 'T3-GIP') or cat == 'GEN-RE':
             return "gen-resolved"
-        return "gen-flagged" if cat == 'GEN-FL' else "pii-default"
+        return "gen-flagged" if (cat == 'GEN-FL' or evt == 'T3-FLG') else "pii-default"
 
     # Sort by pii_id to maintain a consistent order of appearance
     sorted_df = highlighter_df.sort_values(by=['pii_id'])

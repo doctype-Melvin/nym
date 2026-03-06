@@ -356,8 +356,8 @@ def run_tier3(docs, prior_log):
 
     kauf_patterns = [
         (r"\b(\w+)(kaufmann|kauffrau)\b", r"\1fachkraft", "GEN-RE"),
-        (r"\b(Kaufmann|Kauffrau)\s+für\b", "Fachkraft für", "GEN-RE"),
-        (r"\b(Kaufmann|Kauffrau)\s\b", "Fachkraft ", "GEN-RE")
+        (r"\b(Kaufmann|Kauffrau)\s+für\b", "kfm. Fachkraft für", "GEN-RE"),
+        (r"\b(Kaufmann|Kauffrau)\s\b", "kfm. Fachkraft ", "GEN-RE")
     ]
 
     for doc in docs:
@@ -370,12 +370,13 @@ def run_tier3(docs, prior_log):
         for pattern, replacement, label in kauf_patterns:
             for match in re.finditer(pattern, current, flags=re.IGNORECASE):
                 match_text = match.group()
+                actual_replacement = re.sub(pattern, replacement, match_text, flags=re.IGNORECASE)
                 occ_counter[match_text] += 1
                 cumulative_log.append({
                     'filepath': filepath,
                     'pii_text': match_text,
                     'pii_hash': make_pii_hash(match_text),
-                    'label': label,
+                    'label': actual_replacement,
                     'occurrence_index': occ_counter[match_text],
                     'confidence_score': 1.0,
                     'event_code': 'T3-GIP',

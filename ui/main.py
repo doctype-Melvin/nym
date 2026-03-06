@@ -121,7 +121,6 @@ with st.sidebar:
             st.error("Ordner existiert noch nicht. Erst einen Batch abschließen!")
 
     st.caption(f"Speicherort: {logic.OUTPUT_DIR.name}")
-    st.divider()
     # We move the file selection here to keep the main area for the editor
     if st.session_state.app_mode == "Review" and selected_file:
 
@@ -140,6 +139,8 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
+    st.sidebar.markdown("<br>" * 10, unsafe_allow_html=True)
+
     if st.session_state.current_user:
         st.caption(f"👤 {st.session_state.current_user['username']}")
         if st.button("Abmelden", use_container_width=True):
@@ -154,7 +155,6 @@ if st.session_state.app_mode == "Dashboard":
         st.warning("Workflow läuft. Bitte warten.")
     
     st.header("📊 Dashboard")
-    ready_docs = workflow.get_clipboard_stack()
 
     pending_count = len(db.get_pending_data())
     ready_count = len(workflow.get_clipboard_stack())
@@ -172,13 +172,13 @@ if st.session_state.app_mode == "Dashboard":
 
     if uploaded_files and not is_busy:
         if st.button("Prozess starten", disabled=is_busy):
+            for file in uploaded_files if uploaded_files else []:
+                logic.stage_uploaded_file(file)                    
             st.session_state.workflow_running = True
             st.rerun()
 
     if st.session_state.workflow_running:
         with st.spinner("Pipeline läuft... Bitte warten"):
-            for file in uploaded_files if uploaded_files else []:
-                logic.stage_uploaded_file(file)                    
             success, message = logic.trigger_pipeline(str(logic.INPUT_DIR))
             st.session_state.workflow_running = False
             if success:
@@ -190,6 +190,8 @@ if st.session_state.app_mode == "Dashboard":
                 st.error(f"Fehler {message}")
                 st.code(message)
             st.rerun()
+
+    ready_docs = workflow.get_clipboard_stack()
 
     if not ready_docs:
         st.info("Liste geprüfter Dokumente ist leer.")
@@ -206,7 +208,6 @@ if st.session_state.app_mode == "Dashboard":
                         st.warning("Keine Dokumente zum Archivieren gefunden.")
         cols = st.columns([3, 1, 1, 1])
         cols[0].write('**Datei**')
-        cols[1].write('')
         cols[2].write('**Aktionen**')
 
         for filepath, md_content in ready_docs:
@@ -227,73 +228,14 @@ if st.session_state.app_mode == "Dashboard":
                     st.text_area("Vorschau", sanitized_text, height=500, disabled=True, key=f"area_{filename}")
                 
             with row_cols[1]:
-                    copy_button(final_clip, icon='st', copied_label="Kopiert!", key=f"copy_{filename}")
-                    # Potential future "Download PDF" button here
+                copy_button(final_clip, icon='st', copied_label="Kopiert!", key=f"copy_{filename}")
+
             with row_cols[2]:
                 if st.button("Überarbeiten", key=f"revert_{audit_id}"):
                     workflow.mark_document_ready(filepath, 'PENDING')
                     st.session_state.app_mode = "Review"
                     st.session_state.pending_jump = filepath
                     st.rerun()
-
-
-        # for filepath, md_content in ready_docs:
-        #     row_cols = st.columns([3, 1, 1])
-        #     filename = Path(filepath).name
-
-        #     highlighter_df = db.get_detected_data(filepath)
-            
-        #     audit_id = logic.create_pii_hash(filename)[:8]
-        #     sanitized_text = logic.generate_final_sanitized_text(md_content, highlighter_df)
-        #     final_clip = f"{sanitized_text}\n\n--- Complyable Audit ID: {audit_id} ---"      
-
-        #     with row_cols[0]:
-        #         st.markdown(f"**{filename}**")
-            
-        #     with row_cols[1]:
-        #         # We know it's ready because the query only fetches 'READY' docs
-        #         st.caption("✅ Ready")
-            
-        #     with row_cols[2]:
-        #         copy_button(final_clip, icon='st', copied_label="Text kopiert!", key=f"copy_{filename}")
-
-        st.divider()
-        
-        uploaded_files = st.file_uploader(
-                "Neue Dokumente ablegen",
-                accept_multiple_files = True,
-                disabled=is_busy
-            )
-
-        if uploaded_files and not is_busy:
-            st.session_state.workflow_running = True
-
-            with st.status("Verarbeitung läuft...", expanded=True) as status:
-
-                for file in uploaded_files:
-                    logic.stage_uploaded_file(file)
-
-                st.info("KNIME wird hier getriggert")
-                success, logs = workflow.run_knime_workflow()
-
-                if success: 
-                    status.update(label="Verarbeitung abgeschlssen!", state="complete")
-                else:
-                    st.error(f"KNIME Fehler: {logs}")
-
-            st.session_state.workflow_running = False
-
-            st.rerun()
-       
-
-        # if st.button("📦 Alle archivieren", type="primary", use_container_width=True):
-        #     with st.spinner("Zertifikate werden generiert..."):
-        #         success = workflow.archive_ready_batch()
-        #         if success:
-        #             st.success("Batch erfolgreich archiviert! Zertifikate liegen im Zielordner")
-        #             st.rerun()
-        #         else: 
-        #             st.warning("Keine Dokumente zum Archivieren gefunden.")
 
 elif st.session_state.app_mode == "Review":
     is_busy = st.session_state.workflow_running
