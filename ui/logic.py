@@ -172,7 +172,7 @@ def open_folder(path):
     elif platform.system() == "Darwin":
         subprocess.Popen(["open", path])
     else:
-        subprocess.Popen(['xdg-open', path])
+        pass
     return True
 
 def stage_uploaded_file(uploaded_file): # copy uploaded file to input folder

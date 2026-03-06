@@ -19,6 +19,9 @@ import time
 
 # --- Docling imports ---
 from docling.document_converter import DocumentConverter
+from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.datamodel.base_models import InputFormat
+from docling.document_converter import PdfFormatOption
 
 load_dotenv()
 
@@ -193,13 +196,19 @@ def initialize_vault():
 # ─────────────────────────────────────────────
 
 def parse_documents(input_dir):
-    """
-    Replaces the Tika Parser node + chunk loop.
-    Returns a list of dicts: {filepath, original, markdown}
-    """
-    converter = DocumentConverter()
+    pipeline_options = PdfPipelineOptions()
+    pipeline_options.do_ocr = False
+    pipeline_options.do_table_structure = False
+
+    converter = DocumentConverter(
+        format_options={
+            InputFormat.PDF: PdfFormatOption(
+                pipeline_options=pipeline_options
+            )
+        }
+    )
     input_path = Path(input_dir)
-    supported = {".pdf", ".docx", ".doc", ".pptx", ".xlsx", ".html", ".txt"}
+    supported = {".pdf", ".docx", ".doc", ".txt"}
     files = [f for f in input_path.iterdir() if f.suffix.lower() in supported]
 
     if not files:
