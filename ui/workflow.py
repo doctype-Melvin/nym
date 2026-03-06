@@ -6,7 +6,6 @@ import os
 from datetime import datetime
 
 # ---- DEV user_id
-user_id = "DEV_DEV"
 
 def handle_certification(current_file, raw_markdown, highlighter_df, user_id):
     """Executes the full commitment of a document to the vault."""
@@ -62,6 +61,8 @@ def archive_ready_batch(user_id = "Admin"):
         filename = os.path.basename(filepath)
         highlighter_df = db.get_detected_data(filepath)
         sanitized_text = logic.generate_final_sanitized_text(md_content, highlighter_df)
+        if not sanitized_text:
+            sanitized_text = md_content 
         avg_conf = highlighter_df['confidence_score'].mean() if not highlighter_df.empty else 1.0
         audit_id = logic.create_pii_hash(filepath)[:8]
         

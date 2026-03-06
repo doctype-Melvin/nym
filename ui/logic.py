@@ -68,6 +68,11 @@ def apply_overlay(text, highlighter_df):
 
     return text
 
+def clean_for_pdf(text):
+    if not text:
+        return ""
+    return re.sub(r'[\uf000-\uf8ff]', '', text)
+
 def generate_live_redaction(text, highlighter_df):
     #Produces the AI-ready version of the text with [LABEL] placeholders.
     if not text or highlighter_df.empty:
@@ -98,6 +103,10 @@ def strip_ui_labels(text):
 
 def generate_final_sanitized_text(original_text, highlighter_df):
     import re
+    if not original_text:
+        return ""
+    if highlighter_df is None or highlighter_df.empty:
+        return original_text 
     # 1. Only get rows where status != 'EXCLUDE'
     active_df = highlighter_df[highlighter_df['status'].str.upper() != 'EXCLUDE']
     
@@ -148,7 +157,8 @@ def generate_redacted_pdf(sanitized_text, save_path):
     pdf.add_page()
     pdf.add_font('ArialUnicode', '', UNICODE_FONT, uni=True)
     pdf.set_font('ArialUnicode', size=11)
-    pdf.multi_cell(0, 8, sanitized_text)
+    safe_text = clean_for_pdf(sanitized_text or "")
+    pdf.multi_cell(0, 8, safe_text)
     pdf.output(str(save_path))
     return save_path
 

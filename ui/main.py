@@ -22,6 +22,11 @@ overlayer = components.declare_component("overlayer", path=str(CURRENT_DIR / "ov
 df_pending = db.get_pending_data()
 file_list = df_pending['filepath'].tolist()
 # 2. STATE MANAGEMENT
+if "pending_jump" in st.session_state and st.session_state.pending_jump:
+    target = st.session_state.pending_jump
+    if target in file_list:
+        st.session_state.doc_index = file_list.index(target)
+    st.session_state.pending_jump = None
 if "app_mode" not in st.session_state:
     st.session_state.app_mode = "Dashboard"
 if "last_click_id" not in st.session_state:
@@ -42,6 +47,53 @@ if "last_ready_file" not in st.session_state:
     st.session_state.last_ready_file = None
 if "workflow_running" not in st.session_state:
     st.session_state.workflow_running = False
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "current_user" not in st.session_state:
+    st.session_state.current_user = None
+
+# ----------------------------------------------------------------------------------------
+if not st.session_state.authenticated:
+    st.title("🛡️ Complyable")
+    st.subheader("Bitte anmelden")
+    
+    no_users = db.user_count() == 0
+    
+    if no_users:
+        st.info("Willkommen! Bitte erstellen Sie den ersten Benutzer.")
+        st.subheader("Benutzer anlegen")
+        new_username = st.text_input("Benutzername", key="reg_user")
+        new_password = st.text_input("Passwort", type="password", key="reg_pass")
+        new_password2 = st.text_input("Passwort bestätigen", type="password", key="reg_pass2")
+        
+        if st.button("Benutzer erstellen", type="primary"):
+            if not new_username or not new_password:
+                st.error("Bitte alle Felder ausfüllen.")
+            elif new_password != new_password2:
+                st.error("Passwörter stimmen nicht überein.")
+            else:
+                if db.create_user(new_username, new_password, role='admin'):
+                    st.success("Benutzer erstellt! Bitte jetzt anmelden.")
+                    st.rerun()
+                else:
+                    st.error("Benutzername bereits vergeben.")
+    else:
+        username = st.text_input("Benutzername", key="login_user")
+        password = st.text_input("Passwort", type="password", key="login_pass")
+        
+        if st.button("Anmelden", type="primary"):
+            user = db.verify_user(username, password)
+            if user:
+                st.session_state.authenticated = True
+                st.session_state.current_user = user
+                st.rerun()
+            else:
+                st.error("Ungültige Anmeldedaten.")
+    
+    st.stop()  # ← blocks entire rest of app if not authenticated
+# ----------------------------------------------------------------------------------------
 
 if not file_list:
     st.session_state.doc_index = 0
@@ -70,12 +122,11 @@ with st.sidebar:
 
     st.caption(f"Speicherort: {logic.OUTPUT_DIR.name}")
     st.divider()
-    
     # We move the file selection here to keep the main area for the editor
     if st.session_state.app_mode == "Review" and selected_file:
 
         selected_path = st.selectbox(
-            "Quick Jump", 
+            "Schnellauswahl", 
             options=file_list, 
             index=st.session_state.doc_index,
             format_func=lambda x: Path(x).name,
@@ -88,6 +139,13 @@ with st.sidebar:
             st.session_state.doc_index = new_index
             st.rerun()
 
+    st.divider()
+    if st.session_state.current_user:
+        st.caption(f"👤 {st.session_state.current_user['username']}")
+        if st.button("Abmelden", use_container_width=True):
+            st.session_state.authenticated = False
+            st.session_state.current_user = None
+            st.rerun()
 # 4. VIEW LOGIC
 if st.session_state.app_mode == "Dashboard":
     is_busy = st.session_state.workflow_running
@@ -95,35 +153,52 @@ if st.session_state.app_mode == "Dashboard":
     if is_busy:
         st.warning("Workflow läuft. Bitte warten.")
     
-
-    st.header("📊 Bereinigte Dateien")        
+    st.header("📊 Dashboard")
     ready_docs = workflow.get_clipboard_stack()
 
+    pending_count = len(db.get_pending_data())
+    ready_count = len(workflow.get_clipboard_stack())
+    
+    col_m1, col_m2 = st.columns(2)
+    col_m1.metric("📄 Zu prüfen", pending_count)
+    col_m2.metric("✅ Geprüft", ready_count)
+
+    uploaded_files = st.file_uploader(
+            "Neue Dokumente ablegen",
+            accept_multiple_files = True,
+            disabled=is_busy,
+            key=f"uploader_main_{st.session_state.uploader_key}"
+        )
+
+    if uploaded_files and not is_busy:
+        if st.button("Prozess starten", disabled=is_busy):
+            st.session_state.workflow_running = True
+            st.rerun()
+
+    if st.session_state.workflow_running:
+        with st.spinner("Pipeline läuft... Bitte warten"):
+            for file in uploaded_files if uploaded_files else []:
+                logic.stage_uploaded_file(file)                    
+            success, message = logic.trigger_pipeline(str(logic.INPUT_DIR))
+            st.session_state.workflow_running = False
+            if success:
+                st.session_state.uploader_key +=1
+                st.session_state.app_mode = "Review"
+                st.session_state.doc_index = 0
+                st.toast("Verarbeitung abgeschlossen!")
+            else:
+                st.error(f"Fehler {message}")
+                st.code(message)
+            st.rerun()
+
     if not ready_docs:
-        st.info("Keine bereinigten Dokumente vorhanden.")
-        uploaded_files = st.file_uploader(
-                "Neue Dokumente ablegen",
-                accept_multiple_files = True,
-                disabled=is_busy
-            )
-
-        if uploaded_files and not is_busy:
-            if st.button("Prozess starten"):
-                for file in uploaded_files:
-                    logic.stage_uploaded_file(file)                    
-
-                success, message = logic.trigger_pipeline(str(logic.INPUT_DIR))
-
-                if success:
-                    st.success(message)
-                else:
-                    st.error(f"Fehler {message}")
-                    st.code(message)
-                st.rerun()
+        st.info("Liste geprüfter Dokumente ist leer.")
     else: 
         if st.button("📦 Alle archivieren", type="primary", key='top'):
                 with st.spinner("Zertifikate werden generiert..."):
-                    success = workflow.archive_ready_batch()
+                    success = workflow.archive_ready_batch(
+                        user_id=st.session_state.current_user['user_id']
+                    )
                     if success:
                         st.success("Batch erfolgreich archiviert! Zertifikate liegen im Zielordner")
                         st.rerun()
@@ -157,6 +232,8 @@ if st.session_state.app_mode == "Dashboard":
             with row_cols[2]:
                 if st.button("Überarbeiten", key=f"revert_{audit_id}"):
                     workflow.mark_document_ready(filepath, 'PENDING')
+                    st.session_state.app_mode = "Review"
+                    st.session_state.pending_jump = filepath
                     st.rerun()
 
 

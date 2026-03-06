@@ -5,6 +5,7 @@ import hashlib
 from datetime import datetime
 import os
 import uuid
+import re
 
 # Path Configuration
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -49,6 +50,7 @@ def init_db_schema():
             FROM pending_pii p
             LEFT JOIN job_dict j ON p.pii_text = j.original
         """)
+        init_users_table()
         conn.commit()
 
 def get_pending_data():
@@ -141,23 +143,38 @@ def save_neutralization(filepath, original_text, neutral_text):
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         
-        # 1. Update Global Dictionary (for future hits)
+        # 1. Update Global Dictionary
         cursor.execute("""
             INSERT OR REPLACE INTO job_dict (original, neutral) 
             VALUES (?, ?)
         """, (original_text, neutral_text))
+
+        # 2. Count actual occurrences in the document markdown
+        cursor.execute("SELECT markdown FROM pending_review WHERE filepath = ?", (filepath,))
+        row = cursor.fetchone()
+        markdown = row[0] if row else ""
         
-        # 2. Add to Pending PII (to trigger the UI highlight now)
-        cursor.execute("""
-            INSERT INTO pending_pii (
-                filepath, pii_text, pii_hash, label, 
-                occurrence_index, confidence_score, event_code, status, is_manual
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            filepath, original_text, hashlib.sha256(original_text.encode()).hexdigest(),
-            'GEN-RE', 1, 1.0, 'USR-GIP', 'REDACT', 1
-        ))
+        # Find all occurrences
+        matches = list(re.finditer(re.escape(original_text), markdown, re.IGNORECASE))
+        
+        if not matches:
+            # Word not found in document — insert single entry anyway
+            matches_count = 1
+        else:
+            matches_count = len(matches)
+        
+        # 3. Add to Pending PII (to trigger the UI highlight now)
+        for idx in range(1, matches_count + 1):
+            cursor.execute("""
+                INSERT INTO pending_pii (
+                    filepath, pii_text, pii_hash, label, 
+                    occurrence_index, confidence_score, event_code, status, is_manual
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                filepath, original_text, hashlib.sha256(original_text.encode()).hexdigest(),
+                neutral_text, idx, 1.0, 'USR-GIP', 'REDACT', 1
+            ))
         conn.commit()
 
 # def save_neutralization(filepath, original_text, neutral_text):
@@ -264,3 +281,53 @@ def certify_document(filepath, original_text, sanitized_text, avg_confidence, us
         conn.execute("DELETE FROM pending_pii WHERE filepath = ?", (filepath,))
         conn.commit()
 
+def init_users_table():
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id TEXT PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT DEFAULT 'reviewer',
+                created_at TEXT
+            )
+        """)
+        conn.commit()
+
+def get_user(username):
+    with sqlite3.connect(DB_PATH) as conn:
+        res = conn.execute(
+            "SELECT user_id, username, password_hash, role FROM users WHERE username = ?",
+            (username,)
+        ).fetchone()
+        return res
+
+def create_user(username, password, role='reviewer'):
+    import hashlib, uuid
+    user_id = str(uuid.uuid4())
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    with sqlite3.connect(DB_PATH) as conn:
+        try:
+            conn.execute("""
+                INSERT INTO users (user_id, username, password_hash, role, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            """, (user_id, username, password_hash, role, datetime.now().isoformat()))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False  # username already exists
+
+def verify_user(username, password):
+    import hashlib
+    user = get_user(username)
+    if not user:
+        return None
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    if user[2] == password_hash:
+        return {"user_id": user[0], "username": user[1], "role": user[3]}
+    return None
+
+def user_count():
+    with sqlite3.connect(DB_PATH) as conn:
+        res = conn.execute("SELECT COUNT(*) FROM users").fetchone()
+        return res[0]

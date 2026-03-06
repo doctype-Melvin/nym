@@ -15,6 +15,7 @@ from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 from dotenv import load_dotenv
+import time
 
 # --- Docling imports ---
 from docling.document_converter import DocumentConverter
@@ -265,10 +266,10 @@ def run_tier1(docs):
                 })
                 text = text.replace(match_text, f"[{rule['label']}]")
 
-        doc['output'] = text
-        doc['markdown'] = doc['markdown']  # preserve original markdown
+       # doc['output'] = text
+        #doc['markdown'] = doc['markdown']  # preserve original markdown
 
-    print(f"[Pipeline] Tier 1 complete. {len(cumulative_log)} findings.")
+    print(f"[Pipeline]🔍 Tier 1 complete. {len(cumulative_log)} findings.")
     return docs, cumulative_log
 
 
@@ -327,9 +328,9 @@ def run_tier2(docs, prior_log):
                 })
                 text = re.sub(rf'\b{re.escape(found_text)}\b', f"[{label}]", text)
 
-        doc['markdown'] = text
+       # doc['output'] = text
 
-    print(f"[Pipeline] Tier 2 complete. {len(cumulative_log)} total findings so far.")
+    print(f"[Pipeline]🔍 Tier 2 complete. {len(cumulative_log)} total findings so far.")
     return docs, cumulative_log
 
 
@@ -428,9 +429,9 @@ def run_tier3(docs, prior_log):
                             'is_manual': 0
                         })
 
-        doc['markdown'] = current
+       # doc['output'] = current
 
-    print(f"[Pipeline] Tier 3 complete. {len(cumulative_log)} total findings.")
+    print(f"[Pipeline]🔍 Tier 3 complete. {len(cumulative_log)} total findings.")
     return docs, cumulative_log
 
 
@@ -472,8 +473,9 @@ def run_pipeline(input_dir):
     Main entry point. Call this from workflow.py instead of trigger_knime().
     Returns (success: bool, message: str)
     """
+    start_time = time.perf_counter()
     try:
-        print(f"[Pipeline] Starting. Input dir: {input_dir}")
+        print(f"[Pipeline]🚀 Starting. Input dir: {input_dir}")
 
         # Step 0: Ensure DB schema exists
         initialize_vault()
@@ -482,6 +484,12 @@ def run_pipeline(input_dir):
         docs = parse_documents(input_dir)
         if not docs:
             return False, "No documents found in input directory."
+        
+        # Normalize all documents
+        for doc in docs:
+            normalized = to_titlecase(unicodedata.normalize('NFC', doc['markdown']))
+            doc['markdown'] = normalized
+            doc['original'] = normalized
 
         # Step 2: Tier 1 — Regex
         docs, log = run_tier1(docs)
@@ -495,9 +503,18 @@ def run_pipeline(input_dir):
         # Step 5: Write everything to SQLite
         write_to_db(docs, log)
 
-        print(f"[Pipeline] Complete. {len(docs)} documents processed.")
+        end_time = time.perf_counter()
+        duration = end_time - start_time
+
+        # Purge input folder after successful processing
+        for f in Path(input_dir).iterdir():
+            if f.is_file():
+                f.unlink()
+        print(f"[Pipeline]🚮 Input folder purged.")
+
+        print(f"[Pipeline]✅ Complete. {len(docs)} documents processed. Took {duration:.2f} seconds")
         return True, f"{len(docs)} documents processed successfully."
 
     except Exception as e:
         import traceback
-        return False, f"Pipeline error: {str(e)}\n{traceback.format_exc()}"
+        return False, f"‼️ Pipeline error: {str(e)}\n{traceback.format_exc()}"
