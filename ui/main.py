@@ -226,7 +226,7 @@ if st.session_state.app_mode == "Dashboard":
             sanitized_text = logic.generate_final_sanitized_text(md_content, highlighter_df)
             final_clip = f"{sanitized_text}\n\n--- Complyable Audit ID: {audit_id} ---"
 
-            row_cols = st.columns([4, 1, 1])
+            row_cols = st.columns([4, 1, 1, 1])
             with row_cols[0]:
                 with st.expander(f"{filename} | Audit ID: {audit_id}"):
                     st.text_area("Vorschau", sanitized_text, height=500, disabled=True, key=f"area_{filename}")
@@ -237,6 +237,10 @@ if st.session_state.app_mode == "Dashboard":
                     workflow.mark_document_ready(filepath, 'PENDING')
                     st.session_state.app_mode = "Review"
                     st.session_state.pending_jump = filepath
+                    st.rerun()
+            with row_cols[3]:
+                if st.button("Verwerfen", key=f"discard_{audit_id}", help="Dokument verwerfen"):
+                    db.discard_document(filepath, st.session_state.current_user['username'])
                     st.rerun()
 
     # ── Discarded documents list ──
@@ -356,7 +360,7 @@ elif st.session_state.app_mode == "Review":
             grab_state = st.session_state.get("selected_word")
             word = logic.strip_ui_labels(grab_state)
             target_id = st.session_state.get("selected_id")
-
+            st.caption(f"grab: {grab_state} | word: {word} | id: {target_id}")
             if word:
                 if target_id is not None:
                     details = db.get_pii_details(target_id)
@@ -428,9 +432,9 @@ elif st.session_state.app_mode == "Review":
                             st.session_state.selected_word = None
                             st.session_state.selected_id = None
 
-            else:
-                # ── Manual selection — no existing pii_id ──
-                if target_id is None and grab_state:
+                else:
+                    # ── Manual selection — no existing pii_id ──
+
                     choice = st.radio("Action", ["🏷️ Label", "✨ Neutralize (Gender)"])
                     st.info(f"Markiert: **{word}**")
 
@@ -456,6 +460,6 @@ elif st.session_state.app_mode == "Review":
                                 db.save_neutralization(selected_file, word, neutral)
                                 st.session_state.selected_word = None
                                 st.rerun()
-                        if st.button("Cancel", key="cancel_manual", use_container_width=True):
-                            st.session_state.selected_word = None
-                            st.rerun()
+                    if st.button("Abbrechen", key="cancel_manual", use_container_width=True):
+                        st.session_state.selected_word = None
+                        st.rerun()
