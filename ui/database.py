@@ -9,7 +9,7 @@ import re
 
 # Path Configuration
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_PATH = BASE_DIR / "data" / "vault" / "complyable_vault.db"
+DB_PATH = os.getenv('DB_PATH', str(BASE_DIR / "data" / "vault" / "complyable_vault.db"))
 
 def init_db_schema():
     #Initializes the SQLite database, tables, and the UI View
@@ -38,9 +38,9 @@ def init_db_schema():
                 source_tier TEXT, methodology TEXT, legal_basis TEXT
             )
         """)
-        cursor.execute("DROP VIEW IF EXISTS ui_highlight")
+
         cursor.execute("""
-            CREATE VIEW ui_highlight AS 
+            CREATE VIEW IF NOT EXISTS ui_highlight AS 
             SELECT
                 p.pii_id, p.filepath, p.pii_text, p.pii_hash,
                 COALESCE(j.neutral, p.label) AS label,
@@ -70,6 +70,14 @@ def toggle_pii_status(pii_id):
             WHERE pii_id = ?
         """, (pii_id,))
         conn.commit()
+
+def get_pii_category(pii_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        res = conn.execute(
+            "SELECT label FROM pending_pii WHERE pii_id = ?",
+            (pii_id,)
+        ).fetchone()
+        return res[0] if res else None
 
 def toggle_all_pii_status(filepath, text):
     #Toggles status for ALL instances of a specific text in one file."""
@@ -104,6 +112,29 @@ def check_if_pii_exists(filepath, text):
             LIMIT 1
         """, (filepath, text))
         return cursor.fetchone() is not None
+
+def get_pii_details(pii_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        res = conn.execute("""
+            SELECT 
+                p.status,
+                p.label,
+                p.event_code,
+                COALESCE(j.neutral, p.label) AS neutral_phrase,
+                p.pii_text
+            FROM pending_pii p
+            LEFT JOIN job_dict j ON p.pii_text = j.original
+            WHERE p.pii_id = ?
+        """, (pii_id,)).fetchone()
+        if res:
+            return {
+                "status": res[0],
+                "category": res[1],
+                "event_code": res[2],
+                "neutral_phrase": res[3],
+                "pii_text": res[4]
+            }
+        return None
     
 def update_substitution(self, row_id, substitution_text):
     query = """
@@ -139,75 +170,69 @@ def save_manual_tag(filepath, text, label, index, pii_hash):
         conn.commit()
 
 def save_neutralization(filepath, original_text, neutral_text):
-    #Saves a neutral phrase to the global dict and marks it in the current file
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        
+
         # 1. Update Global Dictionary
         cursor.execute("""
             INSERT OR REPLACE INTO job_dict (original, neutral) 
             VALUES (?, ?)
         """, (original_text, neutral_text))
 
-        # 2. Count actual occurrences in the document markdown
-        cursor.execute("SELECT markdown FROM pending_review WHERE filepath = ?", (filepath,))
-        row = cursor.fetchone()
-        markdown = row[0] if row else ""
-        
-        # Find all occurrences
-        matches = list(re.finditer(re.escape(original_text), markdown, re.IGNORECASE))
-        
-        if not matches:
-            # Word not found in document — insert single entry anyway
-            matches_count = 1
-        else:
-            matches_count = len(matches)
-        
-        # 3. Add to Pending PII (to trigger the UI highlight now)
-        for idx in range(1, matches_count + 1):
+        # 2. Check if GEN-FL rows already exist for this word in this document
+        cursor.execute("""
+            SELECT COUNT(*) FROM pending_pii 
+            WHERE filepath = ? AND pii_text = ? AND event_code = 'T3-FLG'
+        """, (filepath, original_text))
+        existing_count = cursor.fetchone()[0]
+
+        if existing_count > 0:
+            # Convert existing GEN-FL rows to USR-GIP in place
             cursor.execute("""
-                INSERT INTO pending_pii (
-                    filepath, pii_text, pii_hash, label, 
-                    occurrence_index, confidence_score, event_code, status, is_manual
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                filepath, original_text, hashlib.sha256(original_text.encode()).hexdigest(),
-                neutral_text, idx, 1.0, 'USR-GIP', 'REDACT', 1
-            ))
+                UPDATE pending_pii 
+                SET event_code = 'USR-GIP', label = ?, status = 'REDACT', is_manual = 1
+                WHERE filepath = ? AND pii_text = ? AND event_code = 'T3-FLG'
+            """, (neutral_text, filepath, original_text))
+        else:
+            # No existing rows — count occurrences and insert fresh
+            cursor.execute("SELECT markdown FROM pending_review WHERE filepath = ?", (filepath,))
+            row = cursor.fetchone()
+            markdown = row[0] if row else ""
+            matches = list(re.finditer(re.escape(original_text), markdown, re.IGNORECASE))
+            matches_count = len(matches) if matches else 1
+
+            for idx in range(1, matches_count + 1):
+                cursor.execute("""
+                    INSERT INTO pending_pii (
+                        filepath, pii_text, pii_hash, label,
+                        occurrence_index, confidence_score, event_code, status, is_manual
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    filepath, original_text,
+                    hashlib.sha256(original_text.encode()).hexdigest(),
+                    neutral_text, idx, 1.0, 'USR-GIP', 'REDACT', 1
+                ))
+
         conn.commit()
 
-# def save_neutralization(filepath, original_text, neutral_text):
-#     with sqlite3.connect(DB_PATH) as conn:
-#         cursor = conn.cursor()
-        
-#         # 1. THE CLEANUP: Delete any GEN-FL flags that are part of this phrase
-#         # This removes the "Yellow" so the "Green" can show up.
-#         cursor.execute("""
-#             DELETE FROM pending_pii 
-#             WHERE filepath = ? 
-#             AND ? LIKE '%' || pii_text || '%'
-#             AND label = 'GEN-FL'
-#         """, (filepath, original_text))
-        
-#         # 2. Update Global Dictionary (Your system "learns")
-#         cursor.execute("""
-#             INSERT OR REPLACE INTO job_dict (original, neutral) 
-#             VALUES (?, ?)
-#         """, (original_text, neutral_text))
-        
-#         # 3. Add the new GEN-RE record (Your "Green" highlight)
-#         cursor.execute("""
-#             INSERT INTO pending_pii (
-#                 filepath, pii_text, pii_hash, label, 
-#                 occurrence_index, confidence_score, event_code, status, is_manual
-#             )
-#             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-#         """, (
-#             filepath, original_text, hashlib.sha256(original_text.encode()).hexdigest(),
-#             'GEN-RE', 1, 1.0, 'USR-GIP', 'REDACT', 1
-#         ))
-#         conn.commit()
+def update_neutralization(filepath, original_text, old_neutral, new_neutral):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE pending_pii 
+            SET label = ?
+            WHERE filepath = ? AND pii_text = ? 
+            AND event_code IN ('USR-GIP', 'T3-GIP', 'T3-FLG')
+        """, (new_neutral, filepath, original_text))
+        cursor.execute(
+            "DELETE FROM job_dict WHERE neutral = ?", (old_neutral,)
+        )
+        cursor.execute("""
+            INSERT OR REPLACE INTO job_dict (original, neutral)
+            VALUES (?, ?)
+        """, (original_text, new_neutral))
+        conn.commit()
 
 def upgrade_flag_to_replacement(row_id, substitution_text):
     # Converts an AI Flag (GEN-FL) into a User Replacement (GEN-RE).
@@ -331,3 +356,68 @@ def user_count():
     with sqlite3.connect(DB_PATH) as conn:
         res = conn.execute("SELECT COUNT(*) FROM users").fetchone()
         return res[0]
+    
+def discard_document(filepath, user_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE pending_review 
+            SET status = 'VERWORFEN' 
+            WHERE filepath = ?
+        """, (filepath,))
+        cursor.execute("""
+            INSERT OR IGNORE INTO event_registry (event_code, category, source_tier, methodology, legal_basis)
+            VALUES 
+                ('USR-DIS', 'USER', 'UI', 'Manual discard', 'User action'),
+                ('USR-RES', 'USER', 'UI', 'Manual restore', 'User action')
+        """)
+        cursor.execute("""
+            INSERT INTO final_commit (
+                commit_uuid, filepath, filename_sanitized,
+                approval_timestamp, user_id, compliance_grade
+            ) VALUES (?, ?, ?, datetime('now'), ?, 'VERWORFEN')
+        """, (str(uuid.uuid4()), filepath, Path(filepath).name, user_id))
+        conn.commit()
+
+def restore_document(filepath, user_id):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE pending_review 
+            SET status = 'PENDING' 
+            WHERE filepath = ?
+        """, (filepath,))
+        cursor.execute("""
+            INSERT INTO final_commit (
+                commit_uuid, filepath, filename_sanitized,
+                approval_timestamp, user_id, compliance_grade
+            ) VALUES (?, ?, ?, datetime('now'), ?, 'WIEDERHERGESTELLT')
+        """, (str(uuid.uuid4()), filepath, Path(filepath).name, user_id))
+        conn.commit()
+
+def get_discarded_documents():
+    with sqlite3.connect(DB_PATH) as conn:
+        return pd.read_sql("""
+            SELECT filepath
+            FROM pending_review 
+            WHERE status = 'VERWORFEN'
+            ORDER BY filepath ASC
+        """, conn)
+
+def revert_neutralization(filepath, original_text):
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        # Revert pending_pii row back to flagged state
+        cursor.execute("""
+            UPDATE pending_pii
+            SET event_code = 'T3-FLG',
+                label = 'GEN-FL',
+                is_manual = 0
+            WHERE filepath = ? AND pii_text = ?
+            AND event_code IN ('USR-GIP', 'T3-GIP')
+        """, (filepath, original_text))
+        # Remove from job_dict
+        cursor.execute("""
+            DELETE FROM job_dict WHERE original = ?
+        """, (original_text,))
+        conn.commit()

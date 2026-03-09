@@ -1,0 +1,155 @@
+original,neutral,category
+Erzieher,Pädagogische Fachkraft,Sozialpädagogik
+Erzieherin,Pädagogische Fachkraft,Sozialpädagogik
+Erzieher*in,Pädagogische Fachkraft,Sozialpädagogik
+Lehrer,Lehrkraft,Bildung
+Lehrerin,Lehrkraft,Bildung
+Lehrer*in,Lehrkraft,Bildung
+Dozent,Lehrende,Bildung
+Dozentin,Lehrende,Bildung
+Dozent*in,Lehrende,Bildung
+Professor,Hochschullehrende,Hochschule
+Professorin,Hochschullehrende,Hochschule
+Professor*in,Hochschullehrende,Hochschule
+Arzt,Medizinische Fachkraft,Gesundheit
+Ärztin,Medizinische Fachkraft,Gesundheit
+Arzt*Ärztin,Medizinische Fachkraft,Gesundheit
+Arzt*in,Medizinische Fachkraft,Gesundheit
+Krankenpfleger,Pflegefachkraft,Gesundheit
+Krankenschwester,Pflegefachkraft,Gesundheit
+Pflegekraft*,Pflegefachkraft,Gesundheit
+Physiotherapeut,Therapeutische Fachkraft,Gesundheit
+Physiotherapeutin,Therapeutische Fachkraft,Gesundheit
+Physiotherapeut*in,Therapeutische Fachkraft,Gesundheit
+Psychologe,Psychologische Fachkraft,Psychologie
+Psychologin,Psychologische Fachkraft,Psychologie
+Psycholog*in,Psychologische Fachkraft,Psychologie
+Ingenieur,Technische Fachkraft,Technik
+Ingenieurin,Technische Fachkraft,Technik
+Ingenieur*in,Technische Fachkraft,Technik
+Informatiker,IT‑Fachkraft,IT
+Informatikerin,IT‑Fachkraft,IT
+Informatiker*in,IT‑Fachkraft,IT
+Entwickler,Softwareentwicklung,IT
+Entwicklerin,Softwareentwicklung,IT
+Entwickler*in,Softwareentwicklung,IT
+Projektleiter,Projektleitung,Management
+Projektleiterin,Projektleitung,Management
+Projektleiter*in,Projektleitung,Management
+Teamleiter,Teamleitung,Management
+Teamleiterin,Teamleitung,Management
+Teamleiter*in,Teamleitung,Management
+Abteilungsleiter,Abteilungsleitung,Management
+Abteilungsleiterin,Abteilungsleitung,Management
+Abteilungsleiter*in,Abteilungsleitung,Management
+Manager,Management,Management
+Managerin,Management,Management
+Manager*in,Management,Management
+Sachbearbeiter,Sachbearbeitung,Verwaltung
+Sachbearbeiterin,Sachbearbeitung,Verwaltung
+Sachbearbeiter*in,Sachbearbeitung,Verwaltung
+Mitarbeiter,Mitarbeitende / Beschäftigte,Allgemein
+Mitarbeiterin,Mitarbeitende / Beschäftigte,Allgemein
+Mitarbeiter*in,Mitarbeitende / Beschäftigte,Allgemein
+Verkäufer,Verkaufskraft,Handel
+Verkäuferin,Verkaufskraft,Handel
+Verkäufer*in,Verkaufskraft,Handel
+Kassierer,Kassenkraft,Handel
+Kassiererin,Kassenkraft,Handel
+Kassierer*in,Kassenkraft,Handel
+Handwerker,Fachkraft im Handwerk,Handwerk
+Handwerkerin,Fachkraft im Handwerk,Handwerk
+Handwerker*in,Fachkraft im Handwerk,Handwerk
+Elektriker,Elektrofachkraft,Handwerk
+Elektrikerin,Elektrofachkraft,Handwerk
+Elektriker*in,Elektrofachkraft,Handwerk
+Mechaniker,Kfz‑Fachkraft / Technik,Technik
+Mechanikerin,Kfz‑Fachkraft / Technik,Technik
+Mechaniker*in,Kfz‑Fachkraft / Technik,Technik
+Bauarbeiter,Bau‑Fachkraft,Bau
+Bauarbeiterin,Bau‑Fachkraft,Bau
+Bauarbeiter*in,Bau‑Fachkraft,Bau
+Architekt,Architekturfachkraft,Architektur
+Architektin,Architekturfachkraft,Architektur
+Architekt*in,Architekturfachkraft,Architektur
+Designer,Designfachkraft,Kreativ
+Designerin,Designfachkraft,Kreativ
+Designer*in,Designfachkraft,Kreativ
+Künstler,Kunstschaffende,Kunst
+Künstlerin,Kunstschaffende,Kunst
+Künstler*in,Kunstschaffende,Kunst
+Journalist,Redaktionsmitarbeit,Medien
+Journalistin,Redaktionsmitarbeit,Medien
+Journalist*in,Redaktionsmitarbeit,Medien
+Fotograf,Fotografie,Medien
+Fotografin,Fotografie,Medien
+Fotograf*in,Fotografie,Medien
+Berater,Beratung,Consulting
+Beraterin,Beratung,Consulting
+Berater*in,Beratung,Consulting
+Trainer,Trainingsleitung / Coaching,Training
+Trainerin,Trainingsleitung / Coaching,Training
+Trainer*in,Trainingsleitung / Coaching,Training
+Coach,Coaching,Beratung
+Coach (w),Coaching,Beratung
+Coach*in,Coaching,Beratung
+Referent,Fachreferat,Verwaltung
+Referentin,Fachreferat,Verwaltung
+Referent*in,Fachreferat,Verwaltung
+Sekretär,Assistenz,Verwaltung
+Sekretärin,Assistenz,Verwaltung
+Sekretär*in,Assistenz,Verwaltung
+Assistent,Assistenz,Verwaltung
+Assistentin,Assistenz,Verwaltung
+Assistent*in,Assistenz,Verwaltung
+Personalreferent,Personalwesen,HR
+Personalreferentin,Personalwesen,HR
+Personalreferent*in,Personalwesen,HR
+Recruiter,Recruiting,HR
+Recruiterin,Recruiting,HR
+Recruiter*in,Recruiting,HR
+Buchhalter,Finanzbuchhaltung,Finanzen
+Buchhalterin,Finanzbuchhaltung,Finanzen
+Buchhalter*in,Finanzbuchhaltung,Finanzen
+Controller,Controlling,Finanzen
+Controllerin,Controlling,Finanzen
+Controller*in,Controlling,Finanzen
+Verkäufer im Außendienst,Außendienst,Vertrieb
+Verkäuferin im Außendienst,Außendienst,Vertrieb
+Verkäufer*in im Außendienst,Außendienst,Vertrieb
+Serviceberater,Kundenservice,Service
+Serviceberaterin,Kundenservice,Service
+Serviceberater*in,Kundenservice,Service
+Kundenbetreuer,Kundenbetreuung,Service
+Kundenbetreuerin,Kundenbetreuung,Service
+Kundenbetreuer*in,Kundenbetreuung,Service
+Pflegehelfer,Pflegeassistenz,Gesundheit
+Pflegehelferin,Pflegeassistenz,Gesundheit
+Pflegehelfer*in,Pflegeassistenz,Gesundheit
+Logopäde,Logopädische Fachkraft,Therapie
+Logopädin,Logopädische Fachkraft,Therapie
+Logopäd*in,Logopädische Fachkraft,Therapie
+Ergotherapeut,Ergotherapeutische Fachkraft,Therapie
+Ergotherapeutin,Ergotherapeutische Fachkraft,Therapie
+Ergotherapeut*in,Ergotherapeutische Fachkraft,Therapie
+Sozialarbeiter,Soziale Fachkraft,Soziales
+Sozialarbeiterin,Soziale Fachkraft,Soziales
+Sozialarbeiter*in,Soziale Fachkraft,Soziales
+Verwaltungsangestellter,Verwaltungstätigkeit,Verwaltung
+Verwaltungsangestellte,Verwaltungstätigkeit,Verwaltung
+Verwaltungsangestellte*,Verwaltungstätigkeit,Verwaltung
+Hausmeister,Haustechnik,Gebäude / Technik
+Hausmeisterin,Haustechnik,Gebäude / Technik
+Hausmeister*in,Haustechnik,Gebäude / Technik
+Fahrer,Fahrdienst,Logistik
+Fahrerin,Fahrdienst,Logistik
+Fahrer*in,Fahrdienst,Logistik
+Lagerarbeiter,Lagerlogistik,Logistik
+Lagerarbeiterin,Lagerlogistik,Logistik
+Lagerarbeiter*in,Lagerlogistik,Logistik
+Wissenschaftler,Forschende,Wissenschaft
+Wissenschaftlerin,Forschende,Wissenschaft
+Wissenschaftler*in,Forschende,Wissenschaft
+Student,Studierende,Bildung
+Studentin,Studierende,Bildung
+Student*in,Studierende,Bildung

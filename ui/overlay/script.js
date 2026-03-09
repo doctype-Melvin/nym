@@ -26,8 +26,11 @@ function attachPIIListeners() {
         mark.onclick = function() {
             // Send the pii_id back to Python to update the DB
             const piiWord = this.childNodes[0].nodeValue.trim()
+            const classes = this.className
+            const isGender = classes.includes('gen-resolved') ||
+                            classes.includes('gen-flagged')
             sendToStreamlit({ 
-                action: "toggle",
+                action: isGender ? "select" : "toggle",
                 pii_id: this.getAttribute('data-id'),
                 word: piiWord,
                 click_id: Date.now() 
