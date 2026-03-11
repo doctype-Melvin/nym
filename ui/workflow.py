@@ -3,6 +3,7 @@ import streamlit as st
 import database as db
 import logic
 import os
+from pathlib import Path
 from datetime import datetime
 
 # ---- DEV user_id
@@ -65,19 +66,21 @@ def archive_ready_batch(user_id = "Admin"):
             sanitized_text = md_content 
         avg_conf = highlighter_df['confidence_score'].mean() if not highlighter_df.empty else 1.0
         audit_id = logic.create_pii_hash(filepath)[:8]
-        
-        cert_filename = f"CERT_{audit_id}_{filename.replace('.pdf', '')}.pdf"
-        logic.generate_pdf_certificate(filepath, user_id, audit_id, save_path=batch_path / cert_filename)
-
-        redact_filename = f"RED_{audit_id}_{filename.replace('.pdf', '')}.pdf"
-        logic.generate_redacted_pdf(sanitized_text, save_path=batch_path / redact_filename)
+        ##--- replace below
+        cert_filename =  f"{audit_id}.pdf"
+        logic.generate_compliance_document(
+            filepath=filepath,
+            sanitized_text=sanitized_text,
+            user_id=user_id,
+            audit_id=audit_id,
+            highlighter_df=highlighter_df,
+            save_path=batch_path / cert_filename)
         
         db.certify_document(
             filepath=filepath,
             original_text=md_content,
             sanitized_text=sanitized_text,
-            avg_confidence=avg_conf,
             user_id=user_id
         )
-
+    db.purge_discarded()
     return True

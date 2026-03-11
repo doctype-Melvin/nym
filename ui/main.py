@@ -8,12 +8,15 @@ from styles import inject_custom_css
 from st_copy import copy_button
 import os
 import shutil
+from datetime import datetime
+import pipeline
 
 
 # 1. SETUP
 st.set_page_config(page_title="Complyable | Review Portal", layout="wide")
 inject_custom_css()
 db.init_db_schema()
+pipeline.initialize_vault()
 
 # Paths for the custom JS component
 CURRENT_DIR = Path(__file__).parent.absolute()
@@ -58,6 +61,12 @@ if "pending_neutral" not in st.session_state:
     st.session_state.pending_neutral = None
 if "confirm_discard" not in st.session_state:
     st.session_state.confirm_discard = False
+if "archive_sort_asc" not in st.session_state:
+    st.session_state.archive_sort_asc = False  # newest first by default
+if "archive_search_audit" not in st.session_state:
+    st.session_state.archive_search_audit = ""
+if "upload_warnings" not in st.session_state:
+    st.session_state.upload_warnings = []
 
 # ----------------------------------------------------------------------------------------
 # AUTH GATE
@@ -117,17 +126,20 @@ else:
 # ----------------------------------------------------------------------------------------
 with st.sidebar:
     st.title("🛡️ Complyable")
-    if st.button("📊 Dashboard", use_container_width=True):
+    if st.button("Dashboard", use_container_width=True):
         st.session_state.app_mode = "Dashboard"
         st.rerun()
-    if st.button("✍️ Review Station", use_container_width=True):
+    if st.button("Revision & Freigabe", use_container_width=True):
         st.session_state.app_mode = "Review"
         st.rerun()
-    if st.button("📁 Output-Ordner öffnen", use_container_width=True):
+    if st.button("Audit Archiv", use_container_width=True):
+        st.session_state.app_mode = "Archive"
+        st.rerun()
+    if st.button("Output-Ordner", use_container_width=True):
         if not logic.open_folder(logic.OUTPUT_DIR):
             st.error("Ordner existiert noch nicht. Erst einen Batch abschließen!")
-
-    st.caption(f"Speicherort: {logic.OUTPUT_DIR.name}")
+        host_path = logic.get_output_display_path()
+        st.caption(f"📁: {host_path}")
 
     if st.session_state.app_mode == "Review" and selected_file:
         selected_path = st.selectbox(
@@ -161,7 +173,7 @@ if st.session_state.app_mode == "Dashboard":
     if is_busy:
         st.warning("Workflow läuft. Bitte warten.")
 
-    st.header("📊 Dashboard")
+    st.header("Dashboard")
 
     pending_count = len(db.get_pending_data())
     ready_count = len(workflow.get_clipboard_stack())
@@ -169,20 +181,6 @@ if st.session_state.app_mode == "Dashboard":
     col_m1, col_m2 = st.columns(2)
     col_m1.metric("📄 Zu prüfen", pending_count)
     col_m2.metric("✅ Geprüft", ready_count)
-
-    uploaded_files = st.file_uploader(
-        "Neue Dokumente ablegen",
-        accept_multiple_files=True,
-        disabled=is_busy,
-        key=f"uploader_main_{st.session_state.uploader_key}"
-    )
-
-    if uploaded_files and not is_busy:
-        if st.button("Prozess starten", disabled=is_busy):
-            for file in uploaded_files if uploaded_files else []:
-                logic.stage_uploaded_file(file)
-            st.session_state.workflow_running = True
-            st.rerun()
 
     if st.session_state.workflow_running:
         with st.spinner("Pipeline läuft... Bitte warten"):
@@ -260,6 +258,7 @@ if st.session_state.app_mode == "Dashboard":
                             filepath,
                             st.session_state.current_user['username']
                         )
+                        st.session_state.app_mode = "Review"
                         st.rerun()
 
 # ----------------------------------------------------------------------------------------
@@ -268,15 +267,71 @@ if st.session_state.app_mode == "Dashboard":
 elif st.session_state.app_mode == "Review":
     is_busy = st.session_state.workflow_running
 
+    st.header("Revision & Freigabe")
+
     if is_busy:
         st.warning("Workflow läuft. Bitte warten.")
 
-    if not file_list:
-        st.info("✨ **Alle Dokumente sind geprüft!**")
+    if st.session_state.workflow_running:
+        with st.spinner("Pipeline läuft... Bitte warten"):
+            success, message = logic.trigger_pipeline(str(logic.INPUT_DIR))
+            st.session_state.workflow_running = False
+            if success:
+                st.session_state.uploader_key += 1
+                st.session_state.doc_index = 0
+                st.toast("Verarbeitung abgeschlossen!")
+            else:
+                st.error(f"Fehler {message}")
+                st.code(message)
+            st.rerun()
 
+    # ── Uploader always visible ──
+    uploaded_files = st.file_uploader(
+        "Neue Dokumente ablegen",
+        accept_multiple_files=True,
+        disabled=is_busy,
+        key=f"uploader_main_{st.session_state.uploader_key}"
+    )
+    
+    if uploaded_files and not is_busy:
+        if st.button("Prozess starten", disabled=is_busy):
+            duplicates = []
+            staged = []
+            for file in uploaded_files:
+                result = logic.stage_uploaded_file(file)
+                if result['duplicate']:
+                    duplicates.append(result)
+                else:
+                    staged.append(result)
+
+            if duplicates:
+                st.session_state.upload_warnings = duplicates
+
+            if staged:
+                st.session_state.workflow_running = True
+                
+                st.rerun()
+            else:
+                st.rerun()
+
+    # Show persistent duplicate warnings above uploader
+    if st.session_state.upload_warnings:
+        for d in st.session_state.upload_warnings:
+            location_label = "Archiv" if d['location'] == 'archive' else "Warteschlange"
+            st.warning(
+                f"**{d['filename']}** wurde bereits verarbeitet "
+                f"({location_label} — Audit ID: `{d['audit_id']}`). "
+                f"Datei wird übersprungen."
+            )
+        if st.button("✖️ Meldungen schließen", key="clear_warnings"):
+            st.session_state.upload_warnings = []
+            st.rerun()
+
+    # ── Review editor — only if documents are pending ──
+    if not file_list:
+        st.info("Keine Dokumente zur Prüfung. Bitte Dateien ablegen.")
     else:
         current_rows = df_pending[df_pending['filepath'] == selected_file]
-
         if current_rows.empty:
             st.session_state.doc_index = 0
             st.rerun()
@@ -284,6 +339,7 @@ elif st.session_state.app_mode == "Review":
 
         doc_row = current_rows.iloc[0]
         highlighter_df = db.get_detected_data(selected_file)
+        # ... rest of review editor unchanged
 
         # ── Navigation bar ──
         nav_prev, nav_status, nav_next, nav_discard = st.columns([1, 2, 1, 1])
@@ -463,3 +519,106 @@ elif st.session_state.app_mode == "Review":
                     if st.button("Abbrechen", key="cancel_manual", use_container_width=True):
                         st.session_state.selected_word = None
                         st.rerun()
+elif st.session_state.app_mode == "Archive":
+    st.header("Audit Archiv")
+
+    archived = db.get_archived_documents()
+
+    if archived.empty:
+        st.info("Noch keine archivierten Dokumente.")
+    else:
+        # ── Summary metrics ──
+        col_a1, col_a2, col_a3 = st.columns(3)
+        col_a1.metric("Archivierte Dokumente", len(archived))
+        #col_a2.metric("👤 Bearbeitet von", archived['user_id'].nunique())
+        col_a2.metric("", "")
+        col_a3.metric("Ältester Eintrag", archived['approval_timestamp'].min()[:10])
+
+        # ── Search, sort and clear ──
+        col_s1, col_s2, col_s3 = st.columns([3, 1, 1])
+        with col_s1:
+            search_audit = st.text_input(
+                "Audit ID suchen",
+                value=st.session_state.archive_search_audit,
+                placeholder="z.B. A3F2B1C0",
+                key="audit_search_input"
+            )
+            st.session_state.archive_search_audit = search_audit
+        with col_s2:
+            sort_label = "📅 Älteste zuerst" if not st.session_state.archive_sort_asc \
+                        else "📅 Neueste zuerst"
+            if st.button(sort_label, use_container_width=True):
+                st.session_state.archive_sort_asc = not st.session_state.archive_sort_asc
+                st.rerun()
+        with col_s3:
+            if st.button("✖️ Zurücksetzen", use_container_width=True):
+                st.session_state.archive_search_audit = ""
+                st.session_state.archive_sort_asc = False
+                st.rerun()
+
+        # ── Apply filter and sort ──
+        filtered = archived.copy()
+        if search_audit:
+            filtered = filtered[
+                filtered['audit_id'].str.contains(search_audit, case=False, na=False)
+            ]
+        filtered = filtered.sort_values(
+            by='approval_timestamp',
+            ascending=st.session_state.archive_sort_asc
+        )
+
+        if search_audit or st.session_state.archive_sort_asc:
+            st.caption(f"{len(filtered)} Einträge gefunden")
+        st.divider()
+
+        # ── Export button ──
+        if st.button("📥 Audit-Daten exportieren", use_container_width=True):
+            try:
+                export_path = db.export_audit_xlsx(
+                    os.getenv('HOST_OUTPUT_PATH', str(logic.OUTPUT_DIR))
+                )
+                with open(export_path, 'rb') as f:
+                    st.download_button(
+                        label="💾 Excel herunterladen",
+                        data=f,
+                        file_name=Path(export_path).name,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="download_audit_archive"
+                    )
+                st.success(f"Exportiert nach: {export_path}")
+            except Exception as e:
+                st.error(f"Export fehlgeschlagen: {e}")
+
+        st.divider()
+
+        # ── Document rows ──
+        cols = st.columns([3, 1, 1])
+        cols[0].write('**Audit ID**')
+        cols[1].write('**Datum**')
+        cols[2].write('**Aktionen**')
+
+        for _, row in filtered.iterrows():
+            audit_id = row['audit_id']
+            timestamp = datetime.strptime(str(row['approval_timestamp'])[:16], "%Y-%m-%dT%H:%M").strftime("%d.%m.%Y %H:%M")
+            sanitized = row['sanitized_text'] or ""
+            final_clip = f"{sanitized}\n\n--- Complyable Audit ID: {audit_id} ---"
+
+            row_cols = st.columns([3, 1, 1])
+            with row_cols[0]:
+                with st.expander(f"{audit_id}"):
+                    st.text_area(
+                        "Vorschau",
+                        sanitized,
+                        height=300,
+                        disabled=True,
+                        key=f"archive_area_{row['commit_uuid']}"
+                    )
+            with row_cols[1]:
+                st.caption(timestamp)
+            with row_cols[2]:
+                copy_button(
+                    final_clip,
+                    icon='st',
+                    copied_label="Kopiert!",
+                    key=f"archive_copy_{row['commit_uuid']}"
+                )

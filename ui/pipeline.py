@@ -76,14 +76,16 @@ def initialize_vault():
             )
         """)
         events = [
-            ('T0-ANL', 'System', 'Tier 0', 'Tika Parser Metadata Analysis', 'System Integrity'),
-            ('T1-RGX', 'Privacy', 'Tier 1', 'Deterministic REGEX Matching', 'GDPR / DSGVO'),
-            ('T2-NER', 'Privacy', 'Tier 2', 'Probabilistic Named Entity Recognition', 'GDPR / DSVGO'),
-            ('T3-GIP', 'Inclusion', 'Tier 3', 'Linguistic Gender Neutralization', 'AGG / EU AI Act'),
-            ('T3-FLG', 'Inclusion', 'Tier 3', 'Morphological Gender Flagging', 'EU AI Act / D&I'),
-            ('USR-RED', 'Privacy', 'User', 'Manual Redaction/Labeling', 'GDPR / DSGVO / Data Minimization'),
-            ('USR-GIP', 'Inclusion', 'User', 'Manual gender-neutralization', 'AGG / EU AI Act')
-        ]
+                ('T0-DOC', 'System', 'Tier 0', 'Docling Document Parse & Metadata Extraction', 'System Integrity'),
+                ('T1-RGX', 'Privacy', 'Tier 1', 'Deterministic REGEX Matching', 'GDPR / DSGVO'),
+                ('T2-NER', 'Privacy', 'Tier 2', 'Probabilistic Named Entity Recognition', 'GDPR / DSGVO'),
+                ('T3-GIP', 'Inclusion', 'Tier 3', 'Linguistic Gender Neutralization', 'AGG / EU AI Act'),
+                ('T3-FLG', 'Inclusion', 'Tier 3', 'Morphological Gender Flagging', 'EU AI Act / D&I'),
+                ('USR-RED', 'Privacy', 'User', 'Manual Redaction/Labeling', 'GDPR / DSGVO / Data Minimization'),
+                ('USR-GIP', 'Inclusion', 'User', 'Manual Gender Neutralization', 'AGG / EU AI Act'),
+                ('USR-DIS', 'System', 'User', 'Document Discarded by User', 'User Action'),
+                ('USR-RES', 'System', 'User', 'Document Restored by User', 'User Action'),
+            ]
         cursor.executemany("INSERT OR IGNORE INTO event_registry VALUES (?, ?, ?, ?, ?)", events)
 
         cursor.execute("""
@@ -113,7 +115,6 @@ def initialize_vault():
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_pending_pii_filepath ON pending_pii (filepath)")
 
-        cursor.execute("DROP TABLE IF EXISTS job_dict")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS job_dict (
                 original TEXT PRIMARY KEY,
@@ -132,9 +133,9 @@ def initialize_vault():
                 processed_at TEXT
             )
         """)
-        cursor.execute("DROP VIEW IF EXISTS ui_highlight")
+
         cursor.execute("""
-            CREATE VIEW ui_highlight AS
+            CREATE VIEW IF NOT EXISTS ui_highlight AS
                 SELECT
                     p.pii_id, p.pii_text, p.filepath, p.pii_hash,
                     COALESCE(j.neutral, p.label) AS label,
@@ -148,14 +149,13 @@ def initialize_vault():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS final_commit (
                 commit_uuid TEXT PRIMARY KEY,
-                filepath TEXT,
-                filename_sanitized TEXT,
+                audit_id TEXT,
+                filename_hash TEXT,
+                sanitized_text TEXT,
                 hash_original TEXT,
                 hash_sanitized TEXT,
                 approval_timestamp DATETIME,
-                user_id TEXT,
-                certificate_path TEXT,
-                compliance_grade TEXT
+                user_id TEXT
             )
         """)
         cursor.execute("""
@@ -196,9 +196,11 @@ def initialize_vault():
 # ─────────────────────────────────────────────
 
 def parse_documents(input_dir):
+    print(f"[Pipeline] Initializing converter...")
     pipeline_options = PdfPipelineOptions()
     pipeline_options.do_ocr = False
     pipeline_options.do_table_structure = False
+    print(f"[Pipeline] Converter options set...")
 
     converter = DocumentConverter(
         format_options={
@@ -207,6 +209,7 @@ def parse_documents(input_dir):
             )
         }
     )
+    print(f"[Pipeline] Converter initialized...")
     input_path = Path(input_dir)
     supported = {".pdf", ".docx", ".doc", ".txt"}
     files = [f for f in input_path.iterdir() if f.suffix.lower() in supported]
@@ -219,12 +222,31 @@ def parse_documents(input_dir):
     for filepath in files:
         print(f"[Pipeline] Parsing: {filepath.name}")
         try:
+            print(f"[Pipeline] Attempting to parse: {filepath.name}")
             result = converter.convert(str(filepath))
+            print(f"[Pipeline] Parsed successfully: {filepath.name}")
             markdown_text = result.document.export_to_markdown()
+
+            page_count = len(result.document.pages) \
+                        if hasattr(result.document, 'pages') else 0
+            
+            t0_entry = {
+                'filepath': str(filepath),
+                'pii_text': filepath.suffix.lower(),
+                'pii_hash': make_pii_hash(str(filepath)),
+                'label': f"pages:{page_count}",
+                'occurrence_index': 1,
+                'confidence_score': 1.0,
+                'event_code': 'T0-ANL',
+                'status': 'SYSTEM',
+                'is_manual': 0
+            }
+
             results.append({
                 "filepath": str(filepath),
                 "original": markdown_text,
                 "markdown": markdown_text,
+                "t0_entry": t0_entry
             })
         except Exception as e:
             print(f"[Pipeline] ERROR parsing {filepath.name}: {e}")
@@ -435,7 +457,7 @@ def run_tier3(docs, prior_log):
                             'occurrence_index': occ_counter[token.text],
                             'confidence_score': 0.75,
                             'event_code': 'T3-FLG',
-                            'status': 'REDACT',
+                            'status': 'FLAGGED',
                             'is_manual': 0
                         })
 
@@ -486,10 +508,12 @@ def run_pipeline(input_dir):
     start_time = time.perf_counter()
     try:
         print(f"[Pipeline]🚀 Starting. Input dir: {input_dir}")
-
+        print(f"[Pipeline] Found files: {[f.name for f in Path(input_dir).iterdir() if f.suffix.lower() in {'.pdf', '.docx', '.txt'}]}")
         # Step 0: Ensure DB schema exists
+        print(f"[Pipeline] Found files: {[f.name for f in Path(input_dir).iterdir() if f.suffix.lower() in {'.pdf', '.docx', '.txt'}]}")
+        print(f"[Pipeline] Initializing vault...")
         initialize_vault()
-
+        print(f"[Pipeline] Vault initialized...")
         # Step 1: Parse documents with Docling
         docs = parse_documents(input_dir)
         if not docs:
@@ -501,6 +525,7 @@ def run_pipeline(input_dir):
             doc['markdown'] = normalized
             doc['original'] = normalized
 
+        log = [doc.pop('t0_entry') for doc in docs]
         # Step 2: Tier 1 — Regex
         docs, log = run_tier1(docs)
 

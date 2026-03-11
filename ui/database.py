@@ -57,6 +57,23 @@ def get_pending_data():
     with sqlite3.connect(DB_PATH) as conn:
         return pd.read_sql("SELECT filepath, markdown FROM pending_review WHERE status = 'PENDING'", conn)
 
+# V1.1 with sort by confidence  
+# def get_pending_data():
+#     with sqlite3.connect(DB_PATH) as conn:
+#         return pd.read_sql("""
+#             SELECT 
+#                 r.filepath,
+#                 r.markdown,
+#                 r.status,
+#                 ROUND(AVG(p.confidence_score), 4) AS doc_confidence,
+#                 COUNT(p.pii_id) AS pii_count
+#             FROM pending_review r
+#             LEFT JOIN pending_pii p ON r.filepath = p.filepath
+#             WHERE r.status = 'PENDING'
+#             GROUP BY r.filepath
+#             ORDER BY doc_confidence ASC
+#         """, conn)
+
 def get_detected_data(filepath):
     with sqlite3.connect(DB_PATH) as conn:
         return pd.read_sql("SELECT * FROM ui_highlight WHERE filepath = ?", conn, params=(filepath,))
@@ -66,7 +83,11 @@ def toggle_pii_status(pii_id):
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
             UPDATE pending_pii 
-            SET status = CASE WHEN status = 'REDACT' THEN 'EXCLUDE' ELSE 'REDACT' END
+            SET status = CASE
+                WHEN status = 'REDACT' THEN 'EXCLUDE'
+                WHEN status = 'EXCLUDE' THEN 'REDACT'
+                ELSE status
+            END
             WHERE pii_id = ?
         """, (pii_id,))
         conn.commit()
@@ -266,42 +287,43 @@ def get_ready_for_clipboard():
         )
         return cursor.fetchall()
 
-def certify_document(filepath, original_text, sanitized_text, avg_confidence, user_id):
-    # 1. Generate Metadata
+def certify_document(filepath, original_text, sanitized_text, user_id):
     c_uuid = str(uuid.uuid4())
+    audit_id = hashlib.sha256(filepath.encode()).hexdigest()[:8].upper()
     hash_orig = hashlib.sha256(original_text.encode()).hexdigest()
     hash_sani = hashlib.sha256(sanitized_text.encode()).hexdigest()
-    
-    # 2. Map Confidence to a Compliance Grade (Example Logic)
-    grade = "A" if avg_confidence > 0.9 else "B" if avg_confidence > 0.7 else "C"
+    filename_hash = hashlib.sha256(os.path.basename(filepath).encode()).hexdigest()
 
     with sqlite3.connect(DB_PATH) as conn:
+        # 1. Write to audit_trail before clearing pending_pii
         conn.execute("""
             INSERT INTO audit_trail (
-                filepath, pii_hash, label, 
-                occurrence_index, confidence_score, event_code, user_id
+                record_uuid, filepath, timestamp, user_id,
+                event_code, pii_hash, label,
+                occurrence_index, confidence_score, commit_uuid
             )
             SELECT 
-                filepath, pii_hash, label, 
-                occurrence_index, confidence_score, event_code, ?
+                lower(hex(randomblob(16))), filepath, ?, ?,
+                event_code, pii_hash, label,
+                occurrence_index, confidence_score, ?
             FROM pending_pii
             WHERE filepath = ?
-        """, (user_id, filepath,))
+        """, (datetime.now().isoformat(), user_id, c_uuid, filepath))
 
-        # 3. Insert into your existing final_commit table
+        # 2. Insert into final_commit — no PII, audit_id only
         conn.execute("""
             INSERT INTO final_commit (
-                commit_uuid, filepath, filename_sanitized, 
-                hash_original, hash_sanitized, 
-                approval_timestamp, user_id, compliance_grade
+                commit_uuid, audit_id, filename_hash, sanitized_text,
+                hash_original, hash_sanitized,
+                approval_timestamp, user_id
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            c_uuid, filepath, os.path.basename(filepath).replace(".pdf", "_sanitized.pdf"),
+            c_uuid, audit_id, filename_hash, sanitized_text,
             hash_orig, hash_sani,
-            datetime.now(), user_id, grade
+            datetime.now().isoformat(), user_id
         ))
-        
-        # 4. Clear the workspace for this file
+
+        # 3. Clear workspace
         conn.execute("DELETE FROM pending_review WHERE filepath = ?", (filepath,))
         conn.execute("DELETE FROM pending_pii WHERE filepath = ?", (filepath,))
         conn.commit()
@@ -365,18 +387,6 @@ def discard_document(filepath, user_id):
             SET status = 'VERWORFEN' 
             WHERE filepath = ?
         """, (filepath,))
-        cursor.execute("""
-            INSERT OR IGNORE INTO event_registry (event_code, category, source_tier, methodology, legal_basis)
-            VALUES 
-                ('USR-DIS', 'USER', 'UI', 'Manual discard', 'User action'),
-                ('USR-RES', 'USER', 'UI', 'Manual restore', 'User action')
-        """)
-        cursor.execute("""
-            INSERT INTO final_commit (
-                commit_uuid, filepath, filename_sanitized,
-                approval_timestamp, user_id, compliance_grade
-            ) VALUES (?, ?, ?, datetime('now'), ?, 'VERWORFEN')
-        """, (str(uuid.uuid4()), filepath, Path(filepath).name, user_id))
         conn.commit()
 
 def restore_document(filepath, user_id):
@@ -387,12 +397,6 @@ def restore_document(filepath, user_id):
             SET status = 'PENDING' 
             WHERE filepath = ?
         """, (filepath,))
-        cursor.execute("""
-            INSERT INTO final_commit (
-                commit_uuid, filepath, filename_sanitized,
-                approval_timestamp, user_id, compliance_grade
-            ) VALUES (?, ?, ?, datetime('now'), ?, 'WIEDERHERGESTELLT')
-        """, (str(uuid.uuid4()), filepath, Path(filepath).name, user_id))
         conn.commit()
 
 def get_discarded_documents():
@@ -403,6 +407,17 @@ def get_discarded_documents():
             WHERE status = 'VERWORFEN'
             ORDER BY filepath ASC
         """, conn)
+    
+def purge_discarded():
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        # Get discarded filepaths first to clean pending_pii
+        cursor.execute("SELECT filepath FROM pending_review WHERE status = 'VERWORFEN'")
+        filepaths = [row[0] for row in cursor.fetchall()]
+        for filepath in filepaths:
+            cursor.execute("DELETE FROM pending_pii WHERE filepath = ?", (filepath,))
+        cursor.execute("DELETE FROM pending_review WHERE status = 'VERWORFEN'")
+        conn.commit()
 
 def revert_neutralization(filepath, original_text):
     with sqlite3.connect(DB_PATH) as conn:
@@ -421,3 +436,84 @@ def revert_neutralization(filepath, original_text):
             DELETE FROM job_dict WHERE original = ?
         """, (original_text,))
         conn.commit()
+
+def export_audit_xlsx(output_path):
+    with sqlite3.connect(DB_PATH) as conn:
+        df_commits = pd.read_sql("""
+            SELECT 
+                commit_uuid, filepath, filename_sanitized,
+                approval_timestamp, user_id, compliance_grade
+            FROM final_commit
+            ORDER BY approval_timestamp DESC
+        """, conn)
+        df_audit = pd.read_sql("""
+            SELECT
+                a.record_uuid, a.filepath, a.timestamp,
+                a.user_id, a.event_code, a.label,
+                a.occurrence_index, a.confidence_score,
+                a.commit_uuid, e.methodology, e.legal_basis
+            FROM audit_trail a
+            LEFT JOIN event_registry e ON a.event_code = e.event_code
+            ORDER BY a.timestamp DESC
+        """, conn)
+
+    export_path = Path(output_path) / f"Complyable_Audit_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    
+    with pd.ExcelWriter(str(export_path), engine='openpyxl') as writer:
+        df_commits.to_excel(writer, sheet_name='Abgeschlossene Dokumente', index=False)
+        df_audit.to_excel(writer, sheet_name='Audit Trail', index=False)
+
+    return export_path
+
+def get_archived_documents():
+    with sqlite3.connect(DB_PATH) as conn:
+        tables = [row[0] for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()]
+        if 'final_commit' not in tables:
+            return pd.DataFrame()
+        return pd.read_sql("""
+            SELECT 
+                commit_uuid, audit_id, sanitized_text,
+                hash_original, hash_sanitized,
+                approval_timestamp, user_id
+            FROM final_commit
+            ORDER BY approval_timestamp DESC
+        """, conn)
+
+def find_duplicate(filename, file_hash):
+    filename_hash = hashlib.sha256(filename.encode()).hexdigest()
+    with sqlite3.connect(DB_PATH) as conn:
+        tables = [row[0] for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()]
+
+        if 'pending_review' in tables:
+            result = conn.execute("""
+                SELECT filepath, status FROM pending_review
+                WHERE filepath LIKE ?
+            """, (f"%{filename}",)).fetchone()
+            if result:
+                filepath, status = result
+                audit_id = hashlib.sha256(filepath.encode()).hexdigest()[:8].upper()
+                return {
+                    'found': True,
+                    'location': 'staging',
+                    'status': status,
+                    'audit_id': audit_id
+                }
+
+        if 'final_commit' in tables:
+            result = conn.execute("""
+                SELECT audit_id FROM final_commit
+                WHERE filename_hash = ?
+            """, (filename_hash,)).fetchone()
+            if result:
+                return {
+                    'found': True,
+                    'location': 'archive',
+                    'status': 'ARCHIVIERT',
+                    'audit_id': result[0]
+                }
+
+        return {'found': False}
