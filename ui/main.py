@@ -16,7 +16,7 @@ import pipeline
 st.set_page_config(page_title="Complyable | Review Portal", layout="wide")
 inject_custom_css()
 db.init_db_schema()
-pipeline.initialize_vault()
+
 
 # Paths for the custom JS component
 CURRENT_DIR = Path(__file__).parent.absolute()

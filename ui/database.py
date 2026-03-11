@@ -31,7 +31,12 @@ def init_db_schema():
                 status TEXT DEFAULT 'PENDING', integrity_hash TEXT
             )
         """)
-        cursor.execute("CREATE TABLE IF NOT EXISTS job_dict (original TEXT PRIMARY KEY, neutral TEXT)")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS job_dict (
+                original TEXT PRIMARY KEY,
+                neutral TEXT,
+                category TEXT)
+        """)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS event_registry (
                 event_code TEXT PRIMARY KEY, category TEXT, 
@@ -441,8 +446,9 @@ def export_audit_xlsx(output_path):
     with sqlite3.connect(DB_PATH) as conn:
         df_commits = pd.read_sql("""
             SELECT 
-                commit_uuid, filepath, filename_sanitized,
-                approval_timestamp, user_id, compliance_grade
+                commit_uuid, audit_id, sanitized_text,
+                hash_original, hash_sanitized,
+                approval_timestamp, user_id
             FROM final_commit
             ORDER BY approval_timestamp DESC
         """, conn)

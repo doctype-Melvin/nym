@@ -188,7 +188,7 @@ def initialize_vault():
                 print(f"[Pipeline] Warning: CSV not found at {CSV_PATH}")
 
         conn.commit()
-    print("[Pipeline] Vault initialized.")
+    print("[Pipeline] Data-Vault initialized.")
 
 
 # ─────────────────────────────────────────────
@@ -510,10 +510,8 @@ def run_pipeline(input_dir):
         print(f"[Pipeline]🚀 Starting. Input dir: {input_dir}")
         print(f"[Pipeline] Found files: {[f.name for f in Path(input_dir).iterdir() if f.suffix.lower() in {'.pdf', '.docx', '.txt'}]}")
         # Step 0: Ensure DB schema exists
-        print(f"[Pipeline] Found files: {[f.name for f in Path(input_dir).iterdir() if f.suffix.lower() in {'.pdf', '.docx', '.txt'}]}")
-        print(f"[Pipeline] Initializing vault...")
+
         initialize_vault()
-        print(f"[Pipeline] Vault initialized...")
         # Step 1: Parse documents with Docling
         docs = parse_documents(input_dir)
         if not docs:
