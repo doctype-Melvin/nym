@@ -125,7 +125,7 @@ else:
 # SIDEBAR
 # ----------------------------------------------------------------------------------------
 with st.sidebar:
-    st.title("🛡️ Complyable")
+    st.caption(f"Complyable v{logic.APP_VERSION}")
     if st.button("Dashboard", use_container_width=True):
         st.session_state.app_mode = "Dashboard"
         st.rerun()
@@ -208,10 +208,10 @@ if st.session_state.app_mode == "Dashboard":
                     user_id=st.session_state.current_user['user_id']
                 )
                 if success:
-                    st.success("Batch erfolgreich archiviert! Zertifikate liegen im Zielordner")
+                    st.toast(message)
                     st.rerun()
                 else:
-                    st.warning("Keine Dokumente zum Archivieren gefunden.")
+                    st.error(message)
 
         cols = st.columns([3, 1, 1, 1])
         cols[0].write('**Datei**')

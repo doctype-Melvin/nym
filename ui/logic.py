@@ -17,6 +17,7 @@ WORKFLOW_PATH = BASE_DIR / "knime"
 KNIME_EXE = os.getenv("KNIME_PATH", r"/Applications/KNIME 5.4.2.app/Contents/MacOS/knime")
 UNICODE_FONT = os.getenv('FONT_PATH', '/Library/Fonts/Arial Unicode.ttf')
 HOST_OUTPUT_PATH = os.getenv('HOST_OUTPUT_PATH', None)
+APP_VERSION = "1.0"
 
 def apply_overlay(text, highlighter_df):
     import re

@@ -47,40 +47,47 @@ def mark_document_ready(filepath, status):
 def get_clipboard_stack():
     return db.get_ready_for_clipboard()
 
-def archive_ready_batch(user_id = "Admin"):
-    ready_docs = db.get_ready_for_clipboard() # Returns [(path, md), ...]
-    
+def archive_ready_batch(user_id="Admin"):
+    ready_docs = db.get_ready_for_clipboard()
     if not ready_docs:
-        return False
-    
+        return False, "Keine Dokumente zum Archivieren gefunden."
+
     batch_timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-    batch_folder_name = f"Batch_{batch_timestamp}"
-    batch_path = logic.OUTPUT_DIR / batch_folder_name
+    batch_path = logic.OUTPUT_DIR / f"Batch_{batch_timestamp}"
     batch_path.mkdir(parents=True, exist_ok=True)
 
+    processed = 0
+    errors = []
+
     for filepath, md_content in ready_docs:
-        filename = os.path.basename(filepath)
-        highlighter_df = db.get_detected_data(filepath)
-        sanitized_text = logic.generate_final_sanitized_text(md_content, highlighter_df)
-        if not sanitized_text:
-            sanitized_text = md_content 
-        avg_conf = highlighter_df['confidence_score'].mean() if not highlighter_df.empty else 1.0
-        audit_id = logic.create_pii_hash(filepath)[:8]
-        ##--- replace below
-        cert_filename =  f"{audit_id}.pdf"
-        logic.generate_compliance_document(
-            filepath=filepath,
-            sanitized_text=sanitized_text,
-            user_id=user_id,
-            audit_id=audit_id,
-            highlighter_df=highlighter_df,
-            save_path=batch_path / cert_filename)
-        
-        db.certify_document(
-            filepath=filepath,
-            original_text=md_content,
-            sanitized_text=sanitized_text,
-            user_id=user_id
-        )
+        try:
+            highlighter_df = db.get_detected_data(filepath)
+            sanitized_text = logic.generate_final_sanitized_text(md_content, highlighter_df)
+            if not sanitized_text:
+                sanitized_text = md_content
+            audit_id = logic.create_pii_hash(filepath)[:8]
+
+            logic.generate_compliance_document(
+                filepath=filepath,
+                sanitized_text=sanitized_text,
+                user_id=user_id,
+                audit_id=audit_id,
+                highlighter_df=highlighter_df,
+                save_path=batch_path / f"{audit_id}.pdf"
+            )
+            db.certify_document(
+                filepath=filepath,
+                original_text=md_content,
+                sanitized_text=sanitized_text,
+                user_id=user_id
+            )
+            processed += 1
+        except Exception as e:
+            import traceback
+            errors.append(f"{os.path.basename(filepath)}: {str(e)}\n{traceback.format_exc()}")
+
     db.purge_discarded()
-    return True
+
+    if errors:
+        return False, f"{processed} archiviert, {len(errors)} Fehler:\n" + "\n".join(errors)
+    return True, f"{processed} Dokumente erfolgreich archiviert."
