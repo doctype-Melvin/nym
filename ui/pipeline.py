@@ -16,6 +16,7 @@ from datetime import datetime
 from collections import defaultdict
 from dotenv import load_dotenv
 import time
+import fcntl
 
 # --- Docling imports ---
 from docling.document_converter import DocumentConverter
@@ -55,141 +56,6 @@ def to_titlecase(text):
         word = match.group(0)
         return word.lower().title() if len(word) >= 3 else word
     return re.sub(r'\b[A-ZÜÖÄß]{3,}\b', replace_match, text)
-
-
-# ─────────────────────────────────────────────
-# STEP 0: SCHEMA GUARD (was: schema guard node)
-# ─────────────────────────────────────────────
-
-def initialize_vault():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS event_registry (
-                event_code TEXT PRIMARY KEY,
-                category TEXT,
-                source_tier TEXT,
-                methodology TEXT,
-                legal_basis TEXT
-            )
-        """)
-        events = [
-                ('T0-DOC', 'System', 'Tier 0', 'Docling Document Parse & Metadata Extraction', 'System Integrity'),
-                ('T1-RGX', 'Privacy', 'Tier 1', 'Deterministic REGEX Matching', 'GDPR / DSGVO'),
-                ('T2-NER', 'Privacy', 'Tier 2', 'Probabilistic Named Entity Recognition', 'GDPR / DSGVO'),
-                ('T3-GIP', 'Inclusion', 'Tier 3', 'Linguistic Gender Neutralization', 'AGG / EU AI Act'),
-                ('T3-FLG', 'Inclusion', 'Tier 3', 'Morphological Gender Flagging', 'EU AI Act / D&I'),
-                ('USR-RED', 'Privacy', 'User', 'Manual Redaction/Labeling', 'GDPR / DSGVO / Data Minimization'),
-                ('USR-GIP', 'Inclusion', 'User', 'Manual Gender Neutralization', 'AGG / EU AI Act'),
-                ('USR-DIS', 'System', 'User', 'Document Discarded by User', 'User Action'),
-                ('USR-RES', 'System', 'User', 'Document Restored by User', 'User Action'),
-            ]
-        cursor.executemany("INSERT OR IGNORE INTO event_registry VALUES (?, ?, ?, ?, ?)", events)
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS pending_review (
-                filepath TEXT PRIMARY KEY,
-                original TEXT,
-                markdown TEXT,
-                output TEXT,
-                status TEXT DEFAULT 'PENDING',
-                integrity_hash TEXT
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS pending_pii (
-                pii_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                filepath TEXT,
-                pii_text TEXT,
-                pii_hash TEXT,
-                label TEXT,
-                occurrence_index INTEGER,
-                confidence_score REAL,
-                event_code TEXT,
-                status TEXT DEFAULT 'REDACT',
-                is_manual INTEGER DEFAULT 0,
-                FOREIGN KEY (filepath) REFERENCES pending_review(filepath)
-            )
-        """)
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_pending_pii_filepath ON pending_pii (filepath)")
-
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS job_dict (
-                original TEXT PRIMARY KEY,
-                neutral TEXT,
-                category TEXT
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS session_summary (
-                session_uuid TEXT,
-                file TEXT,
-                pii_redacted INTEGER,
-                gip INTEGER,
-                trust_score REAL,
-                compliance_grade TEXT,
-                processed_at TEXT
-            )
-        """)
-
-        cursor.execute("""
-            CREATE VIEW IF NOT EXISTS ui_highlight AS
-                SELECT
-                    p.pii_id, p.pii_text, p.filepath, p.pii_hash,
-                    COALESCE(j.neutral, p.label) AS label,
-                    p.occurrence_index, p.status, p.is_manual,
-                    p.label AS category, r.event_code,
-                    r.methodology, p.confidence_score
-                FROM pending_pii p
-                LEFT JOIN event_registry r ON p.event_code = r.event_code
-                LEFT JOIN job_dict j ON p.pii_text = j.original
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS final_commit (
-                commit_uuid TEXT PRIMARY KEY,
-                audit_id TEXT,
-                filename_hash TEXT,
-                sanitized_text TEXT,
-                hash_original TEXT,
-                hash_sanitized TEXT,
-                approval_timestamp DATETIME,
-                user_id TEXT
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS audit_trail (
-                record_uuid TEXT PRIMARY KEY,
-                filepath TEXT,
-                timestamp TEXT,
-                user_id TEXT,
-                event_code TEXT,
-                pii_hash TEXT,
-                label TEXT,
-                occurrence_index INT,
-                confidence_score REAL,
-                integrity_hash TEXT,
-                commit_uuid TEXT,
-                FOREIGN KEY (event_code) REFERENCES event_registry(event_code),
-                FOREIGN KEY (commit_uuid) REFERENCES final_commit(commit_uuid)
-            )
-        """)
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_filepath ON audit_trail (filepath)")
-
-        # Seed job_dict if empty
-        cursor.execute("SELECT COUNT(*) FROM job_dict")
-        if cursor.fetchone()[0] == 0:
-            if os.path.exists(CSV_PATH):
-                seed_data = pd.read_csv(CSV_PATH)
-                seed_data.to_sql('job_dict', conn, if_exists='append', index=False)
-                print("[Pipeline] job_dict seeded.")
-            else:
-                print(f"[Pipeline] Warning: CSV not found at {CSV_PATH}")
-
-        conn.commit()
-    print("[Pipeline] Data-Vault initialized.")
-
 
 # ─────────────────────────────────────────────
 # STEP 1: DOCLING PARSER (was: Tika + chunk loop)
@@ -501,17 +367,27 @@ def write_to_db(docs, cumulative_log):
 # ─────────────────────────────────────────────
 
 def run_pipeline(input_dir):
-    """
-    Main entry point. Call this from workflow.py instead of trigger_knime().
-    Returns (success: bool, message: str)
-    """
-    start_time = time.perf_counter()
+    #Main entry point. Call this from workflow.py instead of trigger_knime().
+    #Returns (success: bool, message: str)
+
+    lock_path = Path(input_dir).parent / ".pipeline.lock"
+    if lock_path.exists():
+        # If lock is older than 10 minutes assume stale and remove it
+        age = time.time() - lock_path.stat().st_mtime
+        if age < 600:
+            print("[Pipeline] Already running — skipping duplicate call.")
+            return False, "Pipeline already running."
+        else:
+            print("[Pipeline] Stale lock found — removing.")
+            lock_path.unlink()
+
     try:
+        lock_path.touch()
+        start_time = time.perf_counter()
         print(f"[Pipeline]🚀 Starting. Input dir: {input_dir}")
         print(f"[Pipeline] Found files: {[f.name for f in Path(input_dir).iterdir() if f.suffix.lower() in {'.pdf', '.docx', '.txt'}]}")
         # Step 0: Ensure DB schema exists
 
-        initialize_vault()
         # Step 1: Parse documents with Docling
         docs = parse_documents(input_dir)
         if not docs:
@@ -551,3 +427,6 @@ def run_pipeline(input_dir):
     except Exception as e:
         import traceback
         return False, f"‼️ Pipeline error: {str(e)}\n{traceback.format_exc()}"
+    finally:
+        if lock_path.exists():
+            lock_path.unlink()
