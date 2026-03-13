@@ -1,0 +1,5 @@
+complyable_app/data/vault/
+complyable_app/data/output/
+complyable_app/data/input/
+**/__pycache__/
+**/*.pyc
