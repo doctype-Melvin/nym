@@ -600,3 +600,39 @@ def find_duplicate(filename, file_hash):
                 }
 
         return {'found': False}
+
+def get_audit_highlighter_df(commit_uuid):
+    with sqlite3.connect(DB_PATH) as conn:
+        return pd.read_sql("""
+            SELECT
+                a.record_uuid as pii_id,
+                a.pii_hash,
+                a.label,
+                a.occurrence_index,
+                a.confidence_score,
+                a.event_code,
+                e.category,
+                'REDACT' as status,
+                0 as is_manual
+            FROM audit_trail a
+            LEFT JOIN event_registry e ON a.event_code = e.event_code
+            WHERE a.commit_uuid = ?
+        """, conn, params=(commit_uuid,))
+    
+def get_archived_by_commit(commit_uuid):
+    with sqlite3.connect(DB_PATH) as conn:
+        result = conn.execute("""
+            SELECT commit_uuid, audit_id, sanitized_text,
+                   approval_timestamp, user_id
+            FROM final_commit
+            WHERE commit_uuid = ?
+        """, (commit_uuid,)).fetchone()
+        if result:
+            return {
+                'commit_uuid': result[0],
+                'audit_id': result[1],
+                'sanitized_text': result[2],
+                'approval_timestamp': result[3],
+                'user_id': result[4]
+            }
+        return None

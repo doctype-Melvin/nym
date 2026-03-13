@@ -91,3 +91,37 @@ def archive_ready_batch(user_id="Admin"):
     if errors:
         return False, f"{processed} archiviert, {len(errors)} Fehler:\n" + "\n".join(errors)
     return True, f"{processed} Dokumente erfolgreich archiviert."
+
+def regenerate_certificates(commit_uuids, user_id):
+    errors = []
+    processed = 0
+    
+    for commit_uuid in commit_uuids:
+        try:
+            row = db.get_archived_by_commit(commit_uuid)
+            if row is None:
+                errors.append(f"{commit_uuid}: nicht gefunden.")
+                continue
+            
+            highlighter_df = db.get_audit_highlighter_df(commit_uuid)
+            audit_id = row['audit_id']
+            
+            batch_path = logic.OUTPUT_DIR / f"Regenerated_{datetime.now().strftime('%Y%m%d_%H%M')}"
+            batch_path.mkdir(parents=True, exist_ok=True)
+            
+            logic.generate_compliance_document(
+                filepath=f"[archived]",
+                sanitized_text=row['sanitized_text'],
+                user_id=row['user_id'],
+                audit_id=audit_id,
+                highlighter_df=highlighter_df,
+                save_path=batch_path / f"{audit_id}.pdf"
+            )
+            processed += 1
+        except Exception as e:
+            import traceback
+            errors.append(f"{commit_uuid}: {str(e)}\n{traceback.format_exc()}")
+    
+    if errors:
+        return False, f"{processed} erstellt, {len(errors)} Fehler:\n" + "\n".join(errors)
+    return True, f"{processed} Zertifikate erfolgreich erstellt."
