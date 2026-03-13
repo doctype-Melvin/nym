@@ -1,0 +1,156 @@
+filepath,pii_hash,category,event_code,methodology,confidence_score
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,<NA>,System,T0-ANL,Tika Parser Metadata Analysis,1.0
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,<NA>,System,T0-ANL,Tika Parser Metadata Analysis,1.0
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,<NA>,System,T0-ANL,Tika Parser Metadata Analysis,1.0
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,<NA>,System,T0-ANL,Tika Parser Metadata Analysis,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,<NA>,System,T0-ANL,Tika Parser Metadata Analysis,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,79439e48a7ae261d384d7fa0d6c53eba7084bc7b0d6997927ab84c50d07019b3,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,2ee8ae1971b72ce761c34be73a666f18b18204030db012b32b83ddd1e6c76919,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,1fbc486f56b702794fe709d21b621fcedfddec5c3b47fdaaad3a40fa4e830d1b,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,ac7bb74de6884ffce919c15fef4193749d4588026c643973946713ac46da540d,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,197258ca7af8a0237e0142a6a134eebb3865f709ac600f174ccafd9b5732b11a,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,af59d975cc129cfae20ed3dc13322b3da5c8d844157550ba79fd4aefc4c454d2,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,55eb98af205c9d17e3569de62916a94b7944672c772f526e6e4c957c0b8d5eeb,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,79439e48a7ae261d384d7fa0d6c53eba7084bc7b0d6997927ab84c50d07019b3,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,1814d559d903a355adc7a53dce316c9951ed3051a3dc835caed2a5e5b2642539,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,1fbc486f56b702794fe709d21b621fcedfddec5c3b47fdaaad3a40fa4e830d1b,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,0a5021255973689d14938f512754626b4cd797fada7a0b686ffe9515617d84e7,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,bc057bc1b6a03b41ccd61fe131197fb30e235dba0750bd25b5f1d7d6f0874220,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,57a3283d833b65c8a6e8d1acb9c99b8a895296ecf28f4795d666b72cb7f0732f,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,8f914541867dd2e2f380f5fbaddb63ab71bc324db2aa93af410b91ef83df8918,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,11eb3890c7358e243299891c0debb1cece829ff97849e319022236e2ac844b83,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,1667e6d0887ef07e608546609f0b3b5739ac440e126847c5e60181fa942145a3,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,cae88c87edf0b4dad1cbe69c2b50abb2c600827e55fe7affa1b33a12ee7ab725,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,197258ca7af8a0237e0142a6a134eebb3865f709ac600f174ccafd9b5732b11a,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,af59d975cc129cfae20ed3dc13322b3da5c8d844157550ba79fd4aefc4c454d2,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,55eb98af205c9d17e3569de62916a94b7944672c772f526e6e4c957c0b8d5eeb,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,79439e48a7ae261d384d7fa0d6c53eba7084bc7b0d6997927ab84c50d07019b3,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,1814d559d903a355adc7a53dce316c9951ed3051a3dc835caed2a5e5b2642539,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,1fbc486f56b702794fe709d21b621fcedfddec5c3b47fdaaad3a40fa4e830d1b,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,64337060b501af87d29116d7a8c1dcb0185c4bea5f3e66421fd387a9d22b0975,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,0a5021255973689d14938f512754626b4cd797fada7a0b686ffe9515617d84e7,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,5055c9148e306a0a099a6a67c65662d4aefe982609b5778f4ce05c54e83a4ae5,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,4f311213ea90a42299e61213d5adcc25c16f8e081565ca19f3c4940f78035c96,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,554cc477587db5c33dae7d9505a7fd1241ba22d450940cf2bae0eac549c6219e,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,fe033cfbdef717e43cca8dfb53c44434de58dea140bcb6391195387324402878,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,11eb3890c7358e243299891c0debb1cece829ff97849e319022236e2ac844b83,Privacy,T1-RGX,Deterministic REGEX Matching,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,0ec17fc71c4d0d90312d5d7b5da085f4ba99c11fc0e50731055bdf6b397ff81e,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,f91008207ef499cd19c3be622e3f4c8a62cbce0fe6bcdea34882dabe49a5d49c,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,dad114b6ed7342bac65c79575f6c7ff761ec26b52c1f5f7a9110532973d05df2,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,e03bb8a19b6aa9c82cce531705a29664253574d81e2c04168870ae53d18be351,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,dad114b6ed7342bac65c79575f6c7ff761ec26b52c1f5f7a9110532973d05df2,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,47afcff3dcb9e9891e7b329e65a7ea4e9f42f7176299c068a3e8a95f6bd705cf,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,dad114b6ed7342bac65c79575f6c7ff761ec26b52c1f5f7a9110532973d05df2,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,65119ff9eada47bcc2ddff6a0d59d909fe04367c3159b938d1620919ff18653c,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,06b23a2c049e2d3fc306b15419b22b47272da9632b092f1e2a51f6c910b373d0,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,c075b9c24a3d0f0cdad3e99683ed2514981e4ff40c6c0056de53e5e56e052227,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,71b4f3a3748cd6843c01e293e701fce769f52381821e21daf2ff4fe9ea57a6f3,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,7580e51171e610a887b8548667cb82a07100fc8da33d18ed86f0314451b6ef0b,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,c075b9c24a3d0f0cdad3e99683ed2514981e4ff40c6c0056de53e5e56e052227,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,af6e56aacd8097c3fb7597b08ecb3d87a040f6ab58067a4b8ff9f5b747adb9be,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,94666c8824a80401cc53f85069615b39616d05058ffb1e36beb7093e1bbaf409,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,dad114b6ed7342bac65c79575f6c7ff761ec26b52c1f5f7a9110532973d05df2,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,af6e56aacd8097c3fb7597b08ecb3d87a040f6ab58067a4b8ff9f5b747adb9be,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,7f51ee44529574f764e001c66fe1d8fe682a4e4fdbb3cf4df616963fd947331b,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,dad114b6ed7342bac65c79575f6c7ff761ec26b52c1f5f7a9110532973d05df2,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,6814ef46f686990cf4e946f966167b0507e1d642c44e51f61bffb0bba2d4672b,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,384283b118f398a667f3026592358cc3cefaa0cac8d5a86a8702f975ef4eb7ac,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,257d0c535f5c3186b05ec9e303a24b7f00e4ddeef056e511d5108190f2cb8e89,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,2318776eed9ae62ec1c5640ebc0c673cc72274c5af8f484ecbb416a198fcaaa9,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,cba156a671524f06b9b6bf0c7cf4f80ea24a7e630d47391b9d575358289f5abc,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,2318776eed9ae62ec1c5640ebc0c673cc72274c5af8f484ecbb416a198fcaaa9,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,fc3872c12cb13dc05d5fd811d319324ccc1e1ef90c08476cbd64bf254a216372,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,9ce4e9689c826e407c8d4d00b757824fa6518e08b7b11f5fc908d38d44f3cd38,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,bc278e4754bd4dec621c5f2844072837b71bfeb66480938a0bcad9a11ab563e0,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,f7e898f114a558333016790c8b8ba3aa0118d7dc4fb8dd451a0fdca583f8a66d,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,dbe8ce381da4cba8821626b7d3f32a4ecc4045d5d585704e97b65300ca629a2a,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,028ffac895cba8386cfe9060ba0818d4f1dabd95fd2c694593f225bcd3067ad4,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,e03bb8a19b6aa9c82cce531705a29664253574d81e2c04168870ae53d18be351,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,af6e56aacd8097c3fb7597b08ecb3d87a040f6ab58067a4b8ff9f5b747adb9be,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,98e84bcb60524e1b6d59b328fbf2eb9297187a31db64c0307c32266c213e5252,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,384283b118f398a667f3026592358cc3cefaa0cac8d5a86a8702f975ef4eb7ac,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,a96f37052c23114b163ee513d7456b527421b6b30b6a5846bcd9c83faa595bb2,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,c075b9c24a3d0f0cdad3e99683ed2514981e4ff40c6c0056de53e5e56e052227,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,076be49c6e5ea6922b83da2a20f8f86dcf6682d988f38320e8fe3603044f1aae,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,7d8ba31ecd3cd673d67e93024612a0d699c1a929fd6f59e12733208f35919416,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,028ffac895cba8386cfe9060ba0818d4f1dabd95fd2c694593f225bcd3067ad4,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,94666c8824a80401cc53f85069615b39616d05058ffb1e36beb7093e1bbaf409,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,dad114b6ed7342bac65c79575f6c7ff761ec26b52c1f5f7a9110532973d05df2,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,af6e56aacd8097c3fb7597b08ecb3d87a040f6ab58067a4b8ff9f5b747adb9be,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,7f51ee44529574f764e001c66fe1d8fe682a4e4fdbb3cf4df616963fd947331b,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,dad114b6ed7342bac65c79575f6c7ff761ec26b52c1f5f7a9110532973d05df2,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,384283b118f398a667f3026592358cc3cefaa0cac8d5a86a8702f975ef4eb7ac,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,bf74e4a280affafbdf6692bc6a9f3d66b03094fbfb4a91589bc7fd6b32664fdb,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,2568c214b558e6845023c8a8d775d61c48eac326e5a36f6a44d6e78b6cffcb2a,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,c075b9c24a3d0f0cdad3e99683ed2514981e4ff40c6c0056de53e5e56e052227,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,93e16e6fc8351c593b06a36f63c255415caa5276504fa20af4f10f4c825d70b9,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,85fadee31bd52f1165087953010c73ff35cde9c835e6d03beb35e398db8afc70,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,7d5af1837f8a559b14c3dea2fb9a4d5eab5580798c2fc21bffdee4c7e991edd8,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,29cda29977a3ef8d4d9e546e03e630a9a97e4903dce13f3d2fca2db38b3a01f3,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,ddcdda5ac2be57d4e9c122e1cbc299856dfd6ccaaaf583a77645536d9636bbe9,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,7401ba2d22d623a10b9685d9efdb8fd539f204a9490ebdd3273297a7cbbd7743,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,0fbdda687fcdbf66af48d7277dd3a1b6c8259c04164abbb86ed8cfb619c174b4,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,0fbdda687fcdbf66af48d7277dd3a1b6c8259c04164abbb86ed8cfb619c174b4,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,384283b118f398a667f3026592358cc3cefaa0cac8d5a86a8702f975ef4eb7ac,Privacy,T2-NER,Probabilistic Named Entitiy Recognition,1.0
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,a42276dc3bca61ca7db7eb36512513facbf1e1a412409c891c13cb216d9184ed,Inclusion,T3-GIP,Linguistic Gender Neutralization,0.9
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,3557b1c6fa8946cc8864f2410a2ea9b70c5b551ac96d772c52cd91721322e4df,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,3557b1c6fa8946cc8864f2410a2ea9b70c5b551ac96d772c52cd91721322e4df,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,c0bc1e08f9743b2d50d5f1607503bf4e849af0e729fca896515bea955d70a33e,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,eaa1aebfd86b461569632acaa47523a66d33a9f768c819802f1934cf07ed24aa,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,6bf004dcd179c1f207828dc31525bbc4a29925c52458ff12b789e36d3b0d1fd2,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,3557b1c6fa8946cc8864f2410a2ea9b70c5b551ac96d772c52cd91721322e4df,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,3557b1c6fa8946cc8864f2410a2ea9b70c5b551ac96d772c52cd91721322e4df,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,482b98e1609bd828db30a1c85f78a5e6e6ee55dcfb01db094432c1db2c1ae168,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,3557b1c6fa8946cc8864f2410a2ea9b70c5b551ac96d772c52cd91721322e4df,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,3557b1c6fa8946cc8864f2410a2ea9b70c5b551ac96d772c52cd91721322e4df,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,eaa1aebfd86b461569632acaa47523a66d33a9f768c819802f1934cf07ed24aa,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,3557b1c6fa8946cc8864f2410a2ea9b70c5b551ac96d772c52cd91721322e4df,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,a95cdd258f9bd357a6ea7efb973b6ab20450a6f68a7f654eb8a57964efd080f0,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,ed6d1ff9927b323ba8ec93a8701da3b7840bdd36bb46fe8a9721a9200090780f,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,eaa1aebfd86b461569632acaa47523a66d33a9f768c819802f1934cf07ed24aa,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/313-lebenslauf-einer-erzieherin.pdf,3557b1c6fa8946cc8864f2410a2ea9b70c5b551ac96d772c52cd91721322e4df,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,a21daa1880017b9dc34bad45190017f5d2a8e5f73defa8311897821be522e55d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,a21daa1880017b9dc34bad45190017f5d2a8e5f73defa8311897821be522e55d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,a21daa1880017b9dc34bad45190017f5d2a8e5f73defa8311897821be522e55d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,e3a1c7313e9a0779481a3d48b11f72f32f57d22eb1c298fd8292a60b50ce9e8c,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,a21daa1880017b9dc34bad45190017f5d2a8e5f73defa8311897821be522e55d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,a21daa1880017b9dc34bad45190017f5d2a8e5f73defa8311897821be522e55d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,a21daa1880017b9dc34bad45190017f5d2a8e5f73defa8311897821be522e55d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,6bf004dcd179c1f207828dc31525bbc4a29925c52458ff12b789e36d3b0d1fd2,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,5f2b0cc78934385587c2d6f5cd003101e8dd096109adf6cb66b5559f804f017d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,1e9720af1c3d46c8025d6b5a8204594bc353e8853a6d6b20547c32ad612534e8,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/283-lebenslauf-abitur.docx,4e425901c513bb380b43697595e3640c43794040acec56d2c3aa8f205062ea51,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,5dabf059842755a55dbaac2b1fb2a6a5c0a8521ebe0af3da27860c6d96ac605d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,ffbc32175897f96210dd5e385442344b7196870a505412e394e3edc26723286a,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,a484d08c63ac98a79b1f2dca8096d706fe15cf7d0c3d5e9afb304d14a41bf18d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/275-lebenslauf-vorlage-schüler.pdf,a484d08c63ac98a79b1f2dca8096d706fe15cf7d0c3d5e9afb304d14a41bf18d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,a484d08c63ac98a79b1f2dca8096d706fe15cf7d0c3d5e9afb304d14a41bf18d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,a484d08c63ac98a79b1f2dca8096d706fe15cf7d0c3d5e9afb304d14a41bf18d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,6b60c2ef62ccf55245de56480951c9fbabafab2ae57a2a6b4d61e4fd45f48119,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,6b60c2ef62ccf55245de56480951c9fbabafab2ae57a2a6b4d61e4fd45f48119,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,fa23b3bc413a6b55e96e8d6e1db0888465b790e92d58c49354a61092f5e84f7b,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,4e425901c513bb380b43697595e3640c43794040acec56d2c3aa8f205062ea51,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,ccae499316d9373675a2374c1bc827264e5612561490aebd2c5db7e9fdcf498a,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/Lebenslauf_persoenlich_junior copy.pdf,80652d939cb9fbf070bfd9ae25af62b77aa2c049ddd9ad6c4f2b00000256e73e,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,74b7eef93f131b1dc54803335895c71ac192167c21b2f26c7ddddcb91e27519d,Inclusion,T3-GIP,Linguistic Gender Neutralization,1.0
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,a73add1aecea03a894ca65d99bc5e91d21b58cdb728343bbcb6cf6cf38b809f5,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,d04fd59f3d9a1fd424c47874ae1dab0dde54fa73ba474245bfac79279afe6df7,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,78cd68013a72c7755b4a9b3941b8138d834140f017c14631d4f46a489823ae9e,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,4e425901c513bb380b43697595e3640c43794040acec56d2c3aa8f205062ea51,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,4e425901c513bb380b43697595e3640c43794040acec56d2c3aa8f205062ea51,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,4e425901c513bb380b43697595e3640c43794040acec56d2c3aa8f205062ea51,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,4e425901c513bb380b43697595e3640c43794040acec56d2c3aa8f205062ea51,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/243-lebenslauf-ausbildung.docx,e72fa00cbe72a828389cb978b7f0209ad9207bead832e2b5fe3d7a5ec52c45f1,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,0f153ef173cef2d7892b4173b7a58d2930e3d3d9bc37bc504dc50389c00f3360,Inclusion,T3-GIP,Linguistic Gender Neutralization,0.9
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,5dabf059842755a55dbaac2b1fb2a6a5c0a8521ebe0af3da27860c6d96ac605d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,64f6e01ef0e38fbec022b46e1949d7019a152f61b0f6c5b29b1fe8d50f3906dc,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,1a1b9ecbd7acbd2d9ecd014d759281413e2c9abd20e0c3f0d31a0fca282aab65,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,a484d08c63ac98a79b1f2dca8096d706fe15cf7d0c3d5e9afb304d14a41bf18d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,00f1b7d3b1b91eed63812885af220dc80c6834a5f448246c2a0309be5e9e94db,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,a484d08c63ac98a79b1f2dca8096d706fe15cf7d0c3d5e9afb304d14a41bf18d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/lebenslauf_anna_mueller.pdf,a484d08c63ac98a79b1f2dca8096d706fe15cf7d0c3d5e9afb304d14a41bf18d,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,bf74e4a280affafbdf6692bc6a9f3d66b03094fbfb4a91589bc7fd6b32664fdb,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,bf74e4a280affafbdf6692bc6a9f3d66b03094fbfb4a91589bc7fd6b32664fdb,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,71127078944ae1bcecee6773c46b0ef74008258b51cb3ea47adc04a7685e1aa7,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,71127078944ae1bcecee6773c46b0ef74008258b51cb3ea47adc04a7685e1aa7,Inclusion,T3-FLG,Morphological Gender Flagging,0.75
+/Users/webdev/Documents/Complyable/small_batch/234-vertriebsingenieur-lebenslauf.pdf,fa23b3bc413a6b55e96e8d6e1db0888465b790e92d58c49354a61092f5e84f7b,Inclusion,T3-FLG,Morphological Gender Flagging,0.75

@@ -1,0 +1,47 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+#root {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+#overlayer {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    color: #333;
+    line-height: 1.6;
+    word-wrap: break-word;
+}
+
+#overlayer::-webkit-scrollbar {
+    width: 5px;
+}
+
+#overlayer::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+
+#overlayer a {
+    color: inherit !important;
+    text-decoration: none !important;
+    pointer-events: none !important;
+    cursor: default !important;
+}
+
+/* Status-based styles */
+mark.pii-default { background-color: #ffcdd2; border-bottom: 2px solid #f44336; }
+mark.gen-resolved { background-color: #bbdefb; border-bottom: 2px solid #2196f3; }
+mark.gen-flagged  { background-color: #e3f2fd; border-bottom: 2px solid #90caf9; border-style: dashed; }
+mark small { font-size: 0.75em; font-weight: bold; color: #0d47a1; margin-left: 4px; }
