@@ -1,4 +1,4 @@
-html, body {
+/* html, body {
     margin: 0;
     padding: 0;
     height: 100%;
@@ -40,8 +40,137 @@ html, body {
     cursor: default !important;
 }
 
-/* Status-based styles */
 mark.pii-default { background-color: #ffcdd2; border-bottom: 2px solid #f44336; }
 mark.gen-resolved { background-color: #bbdefb; border-bottom: 2px solid #2196f3; }
 mark.gen-flagged  { background-color: #e3f2fd; border-bottom: 2px solid #90caf9; border-style: dashed; }
-mark small { font-size: 0.75em; font-weight: bold; color: #0d47a1; margin-left: 4px; }
+mark small { font-size: 0.75em; font-weight: bold; color: #0d47a1; margin-left: 4px; } */
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+#root {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+#overlayer {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    background-color: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    color: #cdd9e5;
+    line-height: 1.8;
+    word-wrap: break-word;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 0.92rem;
+}
+
+#overlayer::-webkit-scrollbar {
+    width: 4px;
+}
+
+#overlayer::-webkit-scrollbar-thumb {
+    background: #2a2d35;
+    border-radius: 4px;
+}
+
+#overlayer a {
+    color: inherit !important;
+    text-decoration: none !important;
+    pointer-events: none !important;
+    cursor: default !important;
+}
+
+/* ── Headings ──────────────────────────────────────────────────────── */
+#overlayer h1, #overlayer h2, #overlayer h3 {
+    color: #e6edf3;
+    font-weight: 500;
+    border-bottom: 1px solid #21262d;
+    padding-bottom: 4px;
+    margin-top: 1.2em;
+}
+
+/* ── PII highlight — cyan glow ─────────────────────────────────────── */
+mark.pii-default {
+    background-color: rgba(56, 189, 248, 0.12);
+    color: #7dd3fc;
+    border-bottom: 1px solid #38bdf8;
+    border-radius: 3px;
+    padding: 1px 3px;
+    box-shadow: 0 0 6px rgba(56, 189, 248, 0.25);
+    cursor: pointer;
+    transition: background-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+mark.pii-default:hover {
+    background-color: rgba(56, 189, 248, 0.25);
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.55);
+}
+
+/* ── Excluded — grey, no strikethrough ─────────────────────────────── */
+mark.pii-excluded {
+    background-color: rgba(100, 110, 120, 0.15);
+    color: #8e96a2;
+    border-bottom: 1px solid #3a3f47;
+    border-radius: 3px;
+    padding: 1px 3px;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+mark.pii-excluded:hover {
+    background-color: rgba(100, 110, 120, 0.28);
+    box-shadow: 0 0 8px rgba(100, 110, 120, 0.3);
+}
+
+/* ── Gender flagged — amber glow ───────────────────────────────────── */
+mark.gen-flagged {
+    background-color: rgba(251, 191, 36, 0.12);
+    color: #fbbf24;
+    border-bottom: 1px dashed #f59e0b;
+    border-radius: 3px;
+    padding: 1px 3px;
+    box-shadow: 0 0 6px rgba(251, 191, 36, 0.2);
+    cursor: pointer;
+    transition: background-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+mark.gen-flagged:hover {
+    background-color: rgba(251, 191, 36, 0.25);
+    box-shadow: 0 0 14px rgba(251, 191, 36, 0.5);
+}
+
+/* ── Gender resolved — green glow ──────────────────────────────────── */
+mark.gen-resolved {
+    background-color: rgba(52, 211, 153, 0.12);
+    color: #34d399;
+    border-bottom: 1px solid #10b981;
+    border-radius: 3px;
+    padding: 1px 3px;
+    box-shadow: 0 0 6px rgba(52, 211, 153, 0.2);
+    cursor: pointer;
+    transition: background-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+mark.gen-resolved:hover {
+    background-color: rgba(52, 211, 153, 0.25);
+    box-shadow: 0 0 14px rgba(52, 211, 153, 0.5);
+}
+
+/* ── Label annotation ──────────────────────────────────────────────── */
+mark small {
+    font-size: 0.7em;
+    font-weight: 500;
+    opacity: 0.65;
+    margin-left: 3px;
+}
