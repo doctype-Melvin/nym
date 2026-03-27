@@ -14,7 +14,7 @@ import pandas as pd
 
 
 # 1. SETUP
-st.set_page_config(page_title="Complyable | Review Portal", layout="wide")
+st.set_page_config(page_title="Complyable", layout="wide")
 styles.inject_custom_css()
 db.init_db_schema()
 
@@ -77,7 +77,7 @@ if "archive_checked" not in st.session_state:
 # AUTH GATE
 # ----------------------------------------------------------------------------------------
 if not st.session_state.authenticated:
-    st.title("🛡️ Complyable")
+    st.title("Complyable")
     st.subheader("Bitte anmelden")
 
     no_users = db.user_count() == 0
@@ -131,7 +131,7 @@ else:
 # ----------------------------------------------------------------------------------------
 with st.sidebar:
     # ── Top section ───────────────────────────────────────────────────
-    st.markdown(f"**Complyable**")
+    st.markdown('<span style="font-size: 20px; font-weight:bold;">Comply<span style="font-size: 20px; color:#2ea043;">able</span></span>', unsafe_allow_html=True)
     st.caption(f"v{logic.APP_VERSION}")
     st.divider()
 
@@ -212,7 +212,7 @@ if st.session_state.app_mode == "Dashboard":
     ready_docs = workflow.get_clipboard_stack()
 
     if not ready_docs:
-        st.info("Liste geprüfter Dokumente ist leer.")
+        st.info("Keine Dokumente zum archivieren.")
     else:
         # col_arch1, col_arch2 = st.columns([3,1])
         # with col_arch2:
@@ -271,7 +271,7 @@ if st.session_state.app_mode == "Dashboard":
 elif st.session_state.app_mode == "Review":
     is_busy = st.session_state.workflow_running
 
-    st.header("Revision & Freigabe")
+    st.header("Upload & Revision")
 
     if is_busy:
         st.warning("Workflow läuft. Bitte warten.")
@@ -292,14 +292,14 @@ elif st.session_state.app_mode == "Review":
     else:
         # ── Uploader always visible ──
         uploaded_files = st.file_uploader(
-            "Neue Dokumente ablegen",
+            "",
             accept_multiple_files=True,
             disabled=is_busy,
             key=f"uploader_main_{st.session_state.uploader_key}"
         )
         
         if uploaded_files and not is_busy:
-            if st.button("Prozess starten", disabled=is_busy):
+            if st.button("Prozess starten", disabled=is_busy, type="primary"):
                 duplicates = []
                 staged = []
                 for file in uploaded_files:
@@ -350,7 +350,7 @@ elif st.session_state.app_mode == "Review":
                 st.session_state.doc_index = new_index
                 st.rerun()
         if not file_list:
-            st.info("Keine Dokumente zur Prüfung. Bitte Dateien ablegen.")
+            st.info("Keine Dateien vorhanden. Bitte Dokumente oben ablegen.")
         else:
             current_rows = df_pending[df_pending['filepath'] == selected_file]
             if current_rows.empty:
