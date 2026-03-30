@@ -11,25 +11,13 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-# Layer 1 — CPU-only torch first, explicitly
+# Install CPU-only torch BEFORE requirements so Docling doesn't pull CUDA
 RUN pip install --no-cache-dir \
     torch==2.3.1+cpu \
-    torchvision==0.18.1+cpu \
     --extra-index-url https://download.pytorch.org/whl/cpu
 
-# Layer 2 — everything else
-RUN pip install --no-cache-dir \
-    streamlit==1.45.0 \
-    pandas \
-    "numpy<2" \
-    "spacy==3.8.7" \
-    fpdf2 \
-    python-dotenv \
-    st-copy==1.1.2 \
-    "openpyxl==3.1.5" \
-    docling
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Layer 3 — spaCy German model
 RUN pip install --no-cache-dir \
     --retries 5 \
     --timeout 300 \

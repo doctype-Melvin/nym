@@ -5,18 +5,34 @@ def inject_custom_css():
         <style>
         /* ── Hide Streamlit deploy button and menu ────────────────────────── */
         #MainMenu { visibility: hidden; }
-        [data-testid="stToolbar"] { display: none; }
         [data-testid="stDecoration"] { display: none; }
         [data-testid="stStatusWidget"] { display: none; }
         footer { visibility: hidden; }
-        
+  
+        [data-testid="stAppDeployButton"] {
+          display: none !important;
+        }
+                
+        [data-testid="stHeader"] {
+            background: #1c2128;    
+        }
+                
+        /* -- Remove the collapse control button -- */
+        [data-testid="stSidebarCollapseButton"] {
+            display: none;        
+        }
+
         /* ── Force dark theme base ────────────────────────────────────────── */
         [data-testid="stAppViewContainer"] {
-            background-color: #0e1117;
+            background-color: #1c2128;
             color: #fafafa;
         }
         [data-testid="stSidebar"] {
-            background-color: #1a1d23;
+            background-color: #161b22;
+        }
+        
+        .main .block-container {
+            background-color: #1c2128;
         }
                 
         /* ── Primary button color override ───────────────────────────────── */
@@ -42,6 +58,20 @@ def inject_custom_css():
             background-color: rgba(251, 146, 60, 0.25) !important;
             box-shadow: 0 0 10px rgba(251, 146, 60, 0.4) !important;
             transition: all 0.3s ease !important;
+        }
+
+        /* Info component */    
+        [data-testid="stAlert"] {
+            border-left: solid .5rem #ff9c23;
+            border-radius: 10px;
+        }
+                
+        [data-testid="stAlertContainer"] {
+            background: transparent;        
+        }
+        
+        [data-testid="stAlertContentInfo"] {
+            color: #ff9c23;        
         }
 
         /* ── Dropdown cursor fix ──────────────────────────────────────────── */
@@ -124,7 +154,7 @@ def inject_active_nav(app_mode):
         section[data-testid="stSidebar"] > div > div > div > div > div:nth-child({idx}) button {{
             background-color: #2a2d35 !important;
             color: #ffffff !important;
-            border-left: 3px solid #4a9eff !important;
+            border-left: 3px solid #2ea043 !important;
         }}
        
         </style>
