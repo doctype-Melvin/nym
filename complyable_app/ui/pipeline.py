@@ -33,7 +33,7 @@ CSV_PATH = str(BASE_DIR / "data" / "refs" / "dict_seed.csv")
 
 # Load spaCy once at module level — expensive, only do it once
 print("[Pipeline] Loading spaCy model...")
-nlp = spacy.load("de_core_news_lg")
+nlp = spacy.load("de_core_news_md")
 ruler = nlp.add_pipe("entity_ruler", before="ner")
 ruler.add_patterns([
     {"label": "ADRESSE_1", "pattern": [{"TEXT": {"REGEX": r"(?i).+(straße|str\.|weg|platz|allee|gasse|damm)$"}}]},

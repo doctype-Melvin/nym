@@ -528,7 +528,7 @@ elif st.session_state.app_mode == "Review":
                             st.session_state.selected_word = None
                             st.rerun()
                 else:
-                    st.caption("Highlight oder Text anklicken um Optionen zu sehen.")
+                    st.caption("Highlight oder Text markieren, um Optionen zu sehen.")
 
             with col_main:
                 rendered_html = logic.apply_overlay(doc_row['markdown'], highlighter_df)

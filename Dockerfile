@@ -11,17 +11,20 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-# Install CPU-only torch BEFORE requirements so Docling doesn't pull CUDA
+# Pre-install CPU-only torch and pin it as a constraint
 RUN pip install --no-cache-dir \
     torch==2.7.1+cpu \
     --extra-index-url https://download.pytorch.org/whl/cpu
+
+RUN echo "torch==2.7.1+cpu" > /constraints.txt
+ENV PIP_CONSTRAINT=/constraints.txt
 
 RUN pip install --no-cache-dir -r requirements.txt
 
 RUN pip install --no-cache-dir \
     --retries 5 \
     --timeout 300 \
-    "de_core_news_lg @ https://github.com/explosion/spacy-models/releases/download/de_core_news_lg-3.8.0/de_core_news_lg-3.8.0-py3-none-any.whl"
+    "de_core_news_md @ https://github.com/explosion/spacy-models/releases/download/de_core_news_md-3.8.0/de_core_news_md-3.8.0-py3-none-any.whl"
 
 COPY ui/ ./ui/
 COPY data/refs/ ./data/refs/
