@@ -13,7 +13,7 @@ COPY requirements.txt .
 
 # Install CPU-only torch BEFORE requirements so Docling doesn't pull CUDA
 RUN pip install --no-cache-dir \
-    torch==2.3.1+cpu \
+    torch==2.7.1+cpu \
     --extra-index-url https://download.pytorch.org/whl/cpu
 
 RUN pip install --no-cache-dir -r requirements.txt
