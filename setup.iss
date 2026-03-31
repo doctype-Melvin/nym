@@ -14,11 +14,11 @@ Source: "installer\install.ps1"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 ; This creates the shortcut to run the INSTALLATION script
-Name: "{group}\Install Complyable"; Filename: "Complyable.exe"; \
+Name: "{group}\Install Complyable"; Filename: "powershell.exe"; \
       Parameters: "-ExecutionPolicy Bypass -File ""{app}\install.ps1"""
-Name: "{commondesktop}\Install Complyable"; Filename: "Complyable.exe"; \
+Name: "{commondesktop}\Install Complyable"; Filename: "powershell.exe"; \
       Parameters: "-ExecutionPolicy Bypass -File ""{app}\install.ps1"""
 
 [Run]
 ; Kicks off the script as soon as the Inno Setup wizard finishes
-Filename: "Complyable.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\wrapper.ps1"""; Flags: postinstall nowait
+Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\wrapper.ps1"""; Flags: postinstall nowait
