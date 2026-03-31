@@ -17,11 +17,11 @@ function Write-Step($msg) {
 }
 
 function Write-Success($msg) {
-    Write-Host "✓ $msg" -ForegroundColor Green
+    Write-Host "$msg" -ForegroundColor Green
 }
 
 function Write-Fail($msg) {
-    Write-Host "✗ $msg" -ForegroundColor Red
+    Write-Host "$msg" -ForegroundColor Red
 }
 
 # ── Step 1: Check Windows version ─────────────────────────────────────────────
@@ -156,7 +156,6 @@ docker run -d ``
 Start-Sleep -Seconds 5
 Start-Process "http://localhost:8501"
 "@
-
 Set-Content -Path $LaunchScript -Value $launchContent
 Write-Success "Launch script created"
 
