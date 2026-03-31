@@ -13,9 +13,9 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Compile Inno Setup Script
-      uses: codetitans/iscc-action@v3
-      with:
-        build-script: "setup.iss"
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup.iss
+      shell: powershell
 
     - name: Upload Installer
       uses: actions/upload-artifact@v4
