@@ -25,13 +25,13 @@ function Write-Fail($msg) {
 }
 
 # ── Step 1: Check Windows version ─────────────────────────────────────────────
-Write-Step "Checking Windows version..."
-$winVersion = [System.Environment]::OSVersion.Version
-if ($winVersion.Major -lt 10 -or ($winVersion.Major -eq 10 -and $winVersion.Build -lt 19041)) {
-    Write-Fail "Complyable requires Windows 10 version 2004 or later."
-    exit 1
-}
-Write-Success "Windows version OK ($($winVersion.Build))"
+# Write-Step "Checking Windows version..."
+# $winVersion = [System.Environment]::OSVersion.Version
+# if ($winVersion.Major -lt 10 -or ($winVersion.Major -eq 10 -and $winVersion.Build -lt 19041)) {
+#     Write-Fail "Complyable requires Windows 10 version 2004 or later."
+#     exit 1
+# }
+# Write-Success "Windows version OK ($($winVersion.Build))"
 
 # ── Step 2: Check/Enable WSL2 ─────────────────────────────────────────────────
 Write-Step "Checking WSL2..."

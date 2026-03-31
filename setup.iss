@@ -4,6 +4,7 @@ AppVersion=0.1.0
 DefaultDirName={autopf}\Complyable
 DefaultGroupName=Complyable
 PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=Output
 
 [Files]
@@ -24,4 +25,5 @@ Name: "{commondesktop}\Install Complyable"; Filename: "powershell.exe"; \
 Filename: "powershell.exe"; \
     Parameters: "-ExecutionPolicy Bypass -File ""{app}\install.ps1"""; \
     WorkingDir: "{app}"; \
-    Flags: postinstall nowait
+    Flags: runascurrentuser waituntilterminated shellexec; \
+    StatusMsg: "Installing Complyable..."
