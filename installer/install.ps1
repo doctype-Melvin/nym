@@ -77,7 +77,7 @@ $rancherInstalled = Get-Command "rdctl" -ErrorAction SilentlyContinue
 if (-not $rancherInstalled) {
     Write-Host "Rancher Desktop not found. Downloading..." -ForegroundColor Yellow
     
-    $rancherUrl = "https://github.com/rancher-sandbox/rancher-desktop/releases/latest/download/Rancher.Desktop.Setup.exe"
+    $rancherUrl = "https://github.com/rancher-sandbox/rancher-desktop/releases/download/v1.1.1/Rancher.Desktop.Setup.1.1.1.exe"
     $rancherInstaller = "$env:TEMP\RancherDesktop-Setup.exe"
     
     Write-Host "Downloading Rancher Desktop (this may take a few minutes)..."
