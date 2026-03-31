@@ -21,4 +21,7 @@ Name: "{commondesktop}\Install Complyable"; Filename: "powershell.exe"; \
 
 [Run]
 ; Kicks off the script as soon as the Inno Setup wizard finishes
-Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -File ""{app}\wrapper.ps1"""; Flags: postinstall nowait
+Filename: "powershell.exe"; \
+    Parameters: "-ExecutionPolicy Bypass -File ""{app}\install.ps1"""; \
+    WorkingDir: "{app}"; \
+    Flags: postinstall nowait
