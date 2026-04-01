@@ -19,7 +19,7 @@ Source: ".\installer\docker-compose.yml"; DestDir: "{commonappdata}\Complyable";
 
 [Run]
 Filename: "{cmd}"; \
-    Parameters: "/c %SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""{commonappdata}\Complyable\phase1-wsl2.ps1"""; \
+    Parameters: "/c %SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -NoExit -File ""{commonappdata}\Complyable\phase1-wsl2.ps1"""; \
     WorkingDir: "{commonappdata}\Complyable"; \
-    Flags: runascurrentuser waituntilterminated; \
+    Flags: runascurrentuser; \
     StatusMsg: "Initializing WSL2 and System Requirements (This may take a minute)..."
