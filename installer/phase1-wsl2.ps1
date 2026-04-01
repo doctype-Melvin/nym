@@ -1,3 +1,4 @@
+# 1. Setup Environment
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -5,6 +6,7 @@ function Write-Step($msg) { Write-Host ""; Write-Host "==> $msg" -ForegroundColo
 function Write-Success($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
 function Write-Fail($msg) { Write-Host "[FAIL] $msg" -ForegroundColor Red; exit 1 }
 
+# 2. Windows Version Check
 Write-Step "Checking Windows version..."
 $build = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").CurrentBuildNumber
 $build = [int]$build
@@ -13,34 +15,50 @@ if ($build -lt 19041) {
 }
 Write-Success "Windows build $build OK"
 
-Write-Step "Checking WSL2..."
+# 3. WSL2 & Virtual Machine Platform Check
+Write-Step "Checking WSL2 status..."
 $wsl = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
 $vm  = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
 
 if ($wsl.State -ne "Enabled" -or $vm.State -ne "Enabled") {
-    Write-Host "Enabling WSL2 — a restart will be required." -ForegroundColor Yellow
+    Write-Host "Enabling WSL2 features — a restart will be required." -ForegroundColor Yellow
+    
+    # Enable features without immediate restart
     Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -NoRestart | Out-Null
     Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -NoRestart | Out-Null
 
-    # Mark resume point
-    $flag = "$env:ProgramData\Complyable\install_phase.txt"
-    New-Item -ItemType Directory -Force -Path "$env:ProgramData\Complyable" | Out-Null
-    Set-Content $flag "phase2"
+    # 4. Prepare for Reboot & Resume
+    $flagDir = "$env:ProgramData\Complyable"
+    if (!(Test-Path $flagDir)) { New-Item -ItemType Directory -Force -Path $flagDir | Out-Null }
+    "phase2" | Set-Content -Path "$flagDir\install_phase.txt" -Force
 
-    # Schedule phase2 to run after reboot
-    $scriptPath = "$env:ProgramData\Complyable\phase2-container.ps1"
+    # 5. Schedule Phase 2 to run at next Login
+    $phase2Script = Join-Path $flagDir "phase2-container.ps1"
+    $taskName = "Complyable-Phase2"
+    
+    # The 'NoExit' flag is vital so the user can see the progress/errors in Phase 2
     $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-ExecutionPolicy Bypass -NoExit -File `"$scriptPath`""
+        -Argument "-NoProfile -ExecutionPolicy Bypass -NoExit -File `"$phase2Script`""
+    
+    # GroupId 'Users' ensures the window pops up on the interactive desktop
+    $principal = New-ScheduledTaskPrincipal -GroupId "Users" -RunLevel Highest
     $trigger = New-ScheduledTaskTrigger -AtLogOn
-    $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -RunLevel Highest
-    Register-ScheduledTask -TaskName "Complyable-Phase2" `
-        -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
 
-    Write-Host "`nRestart required. Installation will continue automatically after restart." -ForegroundColor Yellow
-    Read-Host "Press Enter to restart"
+    # Clean up old tasks and register new one
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
+
+    Write-Host "`n[ACTION REQUIRED] WSL2 enabled. Restarting in 10 seconds..." -ForegroundColor Yellow
+    Write-Host "The installation will resume automatically after you log back in." -ForegroundColor Cyan
+    
+    Start-Sleep -Seconds 10
     Restart-Computer -Force
     exit 0
 }
 
+# 6. Final State: Already Enabled
 Write-Success "WSL2 already enabled"
-Write-Host "`nPhase 1 complete. Proceeding to Phase 2..." -ForegroundColor Green
+Write-Host "`nPhase 1 complete. Starting Phase 2 immediately..." -ForegroundColor Green
+
+# If already enabled, just chain directly into Phase 2 without a reboot
+& "$env:ProgramData\Complyable\phase2-container.ps1"
