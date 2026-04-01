@@ -61,4 +61,5 @@ Write-Success "WSL2 already enabled"
 Write-Host "`nPhase 1 complete. Starting Phase 2 immediately..." -ForegroundColor Green
 
 # If already enabled, just chain directly into Phase 2 without a reboot
-& "$env:ProgramData\Complyable\phase2-container.ps1"
+$phase2Path = Join-Path $env:ProgramData "Complyable\phase2-container.ps1"
+& $phase2Path
