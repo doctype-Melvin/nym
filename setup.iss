@@ -16,10 +16,9 @@ Source: ".\installer\phase1-wsl2.ps1"; DestDir: "{commonappdata}\Complyable"; Fl
 Source: ".\installer\phase2-container.ps1"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
 Source: ".\installer\phase3-launch.ps1"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
 Source: ".\installer\docker-compose.yml"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
+Source: ".\installer\launcher.bat"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
 
 [Run]
-Filename: "{cmd}"; \
-    Parameters: "/c %SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -NoExit -File ""{commonappdata}\Complyable\phase1-wsl2.ps1"""; \
-    WorkingDir: "{commonappdata}\Complyable"; \
-    Flags: runascurrentuser; \
-    StatusMsg: "Initializing WSL2 and System Requirements (This may take a minute)..."
+Filename: "{commonappdata}\Complyable\launcher.bat"; \
+    Flags: runascurrentuser waituntilterminated; \
+    StatusMsg: "Initializing System..."
