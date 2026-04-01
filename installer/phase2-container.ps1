@@ -58,49 +58,43 @@ trap {
 }
 
 # 4. EXECUTION: Podman Logic
-Write-Step "Checking Podman Desktop..."
+Write-Step "Checking Podman Engine..."
 
 if (-not (Get-Command "podman" -ErrorAction SilentlyContinue)) {
     Write-Host "Podman not found. Installing via Winget..." -ForegroundColor Yellow
     
     # 1. Attempt install via Winget (Silent, force, and accept licenses)
-    winget install --id RedHat.Podman-Desktop --silent --accept-package-agreements --accept-source-agreements --scope machine
+    winget install --id RedHat.Podman --silent --accept-package-agreements --accept-source-agreements --scope machine
     
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "Winget failed or is missing. Trying alternative ID..." -ForegroundColor Gray
-        winget install --id RedHat.Podman --silent --accept-package-agreements --accept-source-agreements
-    }
-
     # 2. Refresh Path (Crucial: Winget installs to a new folder)
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 }
 
-Write-Success "Podman available"
-
-# 1. Force the system to broadcast the PATH change
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-
-# 2. Check again. If it still fails, look in the default installation folder
 if (-not (Get-Command "podman" -ErrorAction SilentlyContinue)) {
-    Write-Host "Podman not in PATH yet. Checking default install directory..." -ForegroundColor Yellow
-    $defaultPodmanPath = "C:\Program Files\RedHat\Podman"
-    if (Test-Path $defaultPodmanPath) {
-        $env:Path += ";$defaultPodmanPath"
-        Write-Success "Manually added Podman to session PATH."
+    $enginePath = "C:\Program Files\RedHat\Podman"
+    if (Test-Path $enginePath) { 
+        $env:Path += ";$enginePath" 
+        Write-Success "Manually mapped Podman engine to session."
     } else {
-        Write-Fail "Podman was installed but the executable could not be found."
+        Write-Fail "Podman engine installation failed or path is missing."
     }
 }
 
-Write-Step "Initializing Podman machine..."
-if ((podman machine list 2>&1) -notmatch "podman-machine-default") {
+Write-Success "Podman Engine Ready!"
+
+# Check if machine already exists
+$existing = Invoke-Expression "podman machine list"
+if ($existing -notmatch "podman-machine-default") {
     podman machine init --disk-size 20 --memory 2048
 }
 
-if ((podman machine list 2>&1) -notmatch "Currently running") {
+# 4. Start the Virtual Machine
+$status = podman machine list
+if ($status -notmatch "Currently running") {
+    Write-Host "Starting Podman VM... (this can take 30-60s)" -ForegroundColor Cyan
     podman machine start
 }
-Write-Success "Podman machine running"
+Write-Success "Podman VM is Running"
 
 Write-Step "Authenticating and Pulling Image..."
 $GHCR_TOKEN | podman login ghcr.io -u $GHCR_USER --password-stdin
