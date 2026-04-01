@@ -1,3 +1,19 @@
+# 1. Wait for System Stability
+Write-Host "Waiting for system services..." -ForegroundColor Gray
+Start-Sleep -Seconds 10 
+
+# 2. Force Absolute Pathing
+$baseDir = "C:\ProgramData\Complyable"
+if (!(Test-Path $baseDir)) {
+    # If the folder is missing, try to find where we are
+    $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
+Set-Location $baseDir
+
+# 3. Logging (Create a log file so we can read it if it crashes)
+$logFile = Join-Path $baseDir "install_log.txt"
+"Phase 2 started at $(Get-Date)" | Out-File $logFile
+
 # --- DEBUGGING HEADER ---
 Write-Host "--- PHASE 2 STARTING ---" -ForegroundColor Yellow
 $InfraDir = "C:\ProgramData\Complyable"
@@ -46,14 +62,34 @@ Write-Step "Checking Podman Desktop..."
 $podman = Get-Command "podman" -ErrorAction SilentlyContinue
 
 if (-not $podman) {
-    Write-Host "Podman not found. Downloading Podman Desktop..." -ForegroundColor Yellow
-    $podmanUrl = "https://github.com/containers/podman-desktop/releases/latest/download/podman-desktop-setup.exe"
+Write-Host "Podman not found. Downloading Podman Desktop..." -ForegroundColor Yellow
+    $podmanUrl = "https://github.com/containers/podman-desktop/releases/download/v1.14.1/podman-desktop-setup-1.14.1.exe"
     $podmanInstaller = "$env:TEMP\podman-desktop-setup.exe"
 
-    Invoke-WebRequest -Uri $podmanUrl -OutFile $podmanInstaller -UseBasicParsing
-    Write-Host "Installing silently..."
-    Start-Process -FilePath $podmanInstaller -ArgumentList "/S" -Wait
+    # RETRY LOOP: Try 3 times to account for post-reboot network instability
+    $maxRetries = 3
+    $retryCount = 0
+    $success = $false
 
+    while (-not $success -and $retryCount -lt $maxRetries) {
+        try {
+            $retryCount++
+            Write-Host "Download attempt $retryCount of $maxRetries..." -ForegroundColor Gray
+            Invoke-WebRequest -Uri $podmanUrl -OutFile $podmanInstaller -UseBasicParsing -TimeoutSec 300
+            $success = $true
+        } catch {
+            Write-Host "Download failed: $_" -ForegroundColor Red
+            if ($retryCount -lt $maxRetries) {
+                Write-Host "Waiting 10 seconds before retrying..." -ForegroundColor Yellow
+                Start-Sleep -Seconds 10
+            } else {
+                Write-Fail "Could not download Podman after $maxRetries attempts. Please check your internet connection."
+            }
+        }
+    }
+
+    Write-Host "Installing silently..." -ForegroundColor Cyan
+    Start-Process -FilePath $podmanInstaller -ArgumentList "/S" -Wait
     # Refresh Path
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 }
