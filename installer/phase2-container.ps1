@@ -59,41 +59,38 @@ trap {
 
 # 4. EXECUTION: Podman Logic
 Write-Step "Checking Podman Desktop..."
-$podman = Get-Command "podman" -ErrorAction SilentlyContinue
 
-if (-not $podman) {
-Write-Host "Podman not found. Downloading Podman Desktop..." -ForegroundColor Yellow
-    $podmanUrl = "https://github.com/containers/podman-desktop/releases/download/v1.14.1/podman-desktop-setup-1.14.1.exe"
-    $podmanInstaller = "$env:TEMP\podman-desktop-setup.exe"
-
-    # RETRY LOOP: Try 3 times to account for post-reboot network instability
-    $maxRetries = 3
-    $retryCount = 0
-    $success = $false
-
-    while (-not $success -and $retryCount -lt $maxRetries) {
-        try {
-            $retryCount++
-            Write-Host "Download attempt $retryCount of $maxRetries..." -ForegroundColor Gray
-            Invoke-WebRequest -Uri $podmanUrl -OutFile $podmanInstaller -UseBasicParsing -TimeoutSec 300
-            $success = $true
-        } catch {
-            Write-Host "Download failed: $_" -ForegroundColor Red
-            if ($retryCount -lt $maxRetries) {
-                Write-Host "Waiting 10 seconds before retrying..." -ForegroundColor Yellow
-                Start-Sleep -Seconds 10
-            } else {
-                Write-Fail "Could not download Podman after $maxRetries attempts. Please check your internet connection."
-            }
-        }
+if (-not (Get-Command "podman" -ErrorAction SilentlyContinue)) {
+    Write-Host "Podman not found. Installing via Winget..." -ForegroundColor Yellow
+    
+    # 1. Attempt install via Winget (Silent, force, and accept licenses)
+    winget install --id RedHat.Podman-Desktop --silent --accept-package-agreements --accept-source-agreements --scope machine
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Winget failed or is missing. Trying alternative ID..." -ForegroundColor Gray
+        winget install --id RedHat.Podman --silent --accept-package-agreements --accept-source-agreements
     }
 
-    Write-Host "Installing silently..." -ForegroundColor Cyan
-    Start-Process -FilePath $podmanInstaller -ArgumentList "/S" -Wait
-    # Refresh Path
+    # 2. Refresh Path (Crucial: Winget installs to a new folder)
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 }
+
 Write-Success "Podman available"
+
+# 1. Force the system to broadcast the PATH change
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+
+# 2. Check again. If it still fails, look in the default installation folder
+if (-not (Get-Command "podman" -ErrorAction SilentlyContinue)) {
+    Write-Host "Podman not in PATH yet. Checking default install directory..." -ForegroundColor Yellow
+    $defaultPodmanPath = "C:\Program Files\RedHat\Podman"
+    if (Test-Path $defaultPodmanPath) {
+        $env:Path += ";$defaultPodmanPath"
+        Write-Success "Manually added Podman to session PATH."
+    } else {
+        Write-Fail "Podman was installed but the executable could not be found."
+    }
+}
 
 Write-Step "Initializing Podman machine..."
 if ((podman machine list 2>&1) -notmatch "podman-machine-default") {
