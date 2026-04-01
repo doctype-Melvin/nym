@@ -1,29 +1,23 @@
 [Setup]
 AppName=Complyable
 AppVersion=0.1.0
-DefaultDirName={autopf}\Complyable
+DefaultDirName={commonappdata}\Complyable
 DefaultGroupName=Complyable
 PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=Output
+OutputBaseFilename=Complyable-Setup
+SetupIconFile=assets\COMPLYABLE.png
+UninstallDisplayName=Complyable
 
 [Files]
-; Source is relative to the .iss file location in your repo
-Source: "installer\install.ps1"; DestDir: "{app}"; Flags: ignoreversion
-; Include any other necessary files here, e.g.:
-; Source: "assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs
-
-[Icons]
-; This creates the shortcut to run the INSTALLATION script
-Name: "{group}\Install Complyable"; Filename: "powershell.exe"; \
-      Parameters: "-ExecutionPolicy Bypass -File ""{app}\install.ps1"""
-Name: "{commondesktop}\Install Complyable"; Filename: "powershell.exe"; \
-      Parameters: "-ExecutionPolicy Bypass -File ""{app}\install.ps1"""
+Source: ".\installer\phase1-wsl2.ps1"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
+Source: ".\installer\phase2-container.ps1"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
+Source: ".\installer\phase3-launch.ps1"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
+Source: ".\installer\docker-compose.yml"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
 
 [Run]
-; Kicks off the script as soon as the Inno Setup wizard finishes
 Filename: "powershell.exe"; \
-    Parameters: "-ExecutionPolicy Bypass -File ""{app}\install.ps1"""; \
-    WorkingDir: "{app}"; \
-    Flags: runascurrentuser waituntilterminated shellexec; \
-    StatusMsg: "Installing Complyable..."
+    Parameters: "-ExecutionPolicy Bypass -File ""{commonappdata}\Complyable\phase1-wsl2.ps1"""; \
+    WorkingDir: "{commonappdata}\Complyable"; \
+    Flags: runascurrentuser waituntilterminated; \
+    StatusMsg: "Setting up Complyable..."
