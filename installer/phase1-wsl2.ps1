@@ -1,4 +1,4 @@
-# 1. Setup Environment
+# 1. Environment Setup
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -11,59 +11,56 @@ Write-Step "Checking Windows version..."
 $build = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").CurrentBuildNumber
 $build = [int]$build
 if ($build -lt 19041) {
-    Write-Fail "Complyable requires Windows 10 2004 (build 19041) or later. Current build: $build"
+    Write-Fail "Windows build $build is too old. 19041+ required."
 }
 Write-Success "Windows build $build OK"
 
-# 3. WSL2 & Virtual Machine Platform Check
-Write-Step "Checking WSL2 status..."
-$wsl = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
-$vm  = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
+# 3. WSL2 Feature Check
+Write-Step "Checking WSL2 and Virtual Machine Platform..."
+Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -NoRestart -ErrorAction SilentlyContinue | Out-Null
+Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -NoRestart -ErrorAction SilentlyContinue | Out-Null
 
 if ($wsl.State -ne "Enabled" -or $vm.State -ne "Enabled") {
-    Write-Host "Enabling WSL2 features — a restart will be required." -ForegroundColor Yellow
+    Write-Host "Enabling WSL2 features... A restart will be required." -ForegroundColor Yellow
     
-    # Enable features without immediate restart
+    # 3. Enable features
     Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -NoRestart | Out-Null
     Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -NoRestart | Out-Null
 
-    # 4. Prepare for Reboot & Resume
+    # 4. Setup Reboot Persistence
     $flagDir = "$env:ProgramData\Complyable"
-    if (!(Test-Path $flagDir)) { New-Item -ItemType Directory -Force -Path $flagDir | Out-Null }
-    "phase2" | Set-Content -Path "$flagDir\install_phase.txt" -Force
+    if (!(Test-Path $flagDir)) { 
+    New-Item -ItemType Directory -Force -Path $flagDir -ErrorAction SilentlyContinue | Out-Null 
+    }
+    Set-Content -Path "$flagDir\install_phase.txt" -Value "phase2" -Force
 
-    # 5. Schedule Phase 2 to run at next Login
-    $phase2Script = Join-Path $flagDir "phase2-container.ps1"
+    # 5. Schedule Phase 2 (Note: No backticks here for maximum stability)
+    if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    }
+    $phase2Script = "$flagDir\phase2-container.ps1"
     $taskName = "Complyable-Phase2"
-    
-    # The 'NoExit' flag is vital so the user can see the progress/errors in Phase 2
-    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -NoExit -File `"$phase2Script`""
-    
-    # GroupId 'Users' ensures the window pops up on the interactive desktop
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -NoExit -File $phase2Script"
     $principal = New-ScheduledTaskPrincipal -GroupId "Users" -RunLevel Highest
     $trigger = New-ScheduledTaskTrigger -AtLogOn
 
-    # Clean up old tasks and register new one
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
 
-    Write-Host "`n[ACTION REQUIRED] WSL2 enabled. Restarting in 10 seconds..." -ForegroundColor Yellow
-    Write-Host "The installation will resume automatically after you log back in." -ForegroundColor Cyan
-    
+    Write-Host "Restarting in 10 seconds. Installation resumes after login." -ForegroundColor Yellow
     Start-Sleep -Seconds 10
     Restart-Computer -Force
     exit 0
 }
 
-# 6. Final State: Already Enabled
-Write-Success "WSL2 already enabled"
-Write-Host "`nPhase 1 complete. Starting Phase 2 immediately..." -ForegroundColor Green
+# 6. Success / Chain to Phase 2
+Write-Success "WSL2 is already enabled."
+Write-Host "Proceeding to Phase 2 (Container Setup)..." -ForegroundColor Green
 
-# Use Join-Path properly to avoid manual quote/backslash issues
-$phase2Path = Join-Path -Path $env:ProgramData -ChildPath "Complyable\phase2-container.ps1"
-
+$phase2Path = "$env:ProgramData\Complyable\phase2-container.ps1"
 if (Test-Path $phase2Path) {
-    & $phase2Path
+    # Launching Phase 2 directly
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File $phase2Path
 } else {
-    Write-Fail "Phase 2 script not found at $phase2Path"
+    Write-Host "ERROR: phase2-container.ps1 not found in $env:ProgramData\Complyable" -ForegroundColor Red
 }
