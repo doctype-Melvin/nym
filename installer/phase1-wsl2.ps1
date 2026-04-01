@@ -6,7 +6,8 @@ function Write-Success($msg) { Write-Host "✓ $msg" -ForegroundColor Green }
 function Write-Fail($msg) { Write-Host "✗ $msg" -ForegroundColor Red; exit 1 }
 
 Write-Step "Checking Windows version..."
-$build = [System.Environment]::OSVersion.Version.Build
+$build = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").CurrentBuildNumber
+$build = [int]$build
 if ($build -lt 19041) {
     Write-Fail "Complyable requires Windows 10 2004 (build 19041) or later. Current build: $build"
 }
@@ -29,7 +30,7 @@ if ($wsl.State -ne "Enabled" -or $vm.State -ne "Enabled") {
     # Schedule phase2 to run after reboot
     $scriptPath = "$env:ProgramData\Complyable\phase2-container.ps1"
     $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-ExecutionPolicy Bypass -File `"$scriptPath`""
+        -Argument "-ExecutionPolicy Bypass -NoExit -File `"$scriptPath`""
     $trigger = New-ScheduledTaskTrigger -AtLogOn
     $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -RunLevel Highest
     Register-ScheduledTask -TaskName "Complyable-Phase2" `

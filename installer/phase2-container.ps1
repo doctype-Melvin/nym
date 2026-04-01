@@ -1,4 +1,9 @@
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+trap {
+    Write-Host "`nERROR: $_" -ForegroundColor Red
+    Read-Host "Press Enter to close"
+    exit 1
+}
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $GHCR_TOKEN = "CUSTOMER_TOKEN_PLACEHOLDER"
