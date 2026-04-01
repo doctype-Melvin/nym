@@ -1,87 +1,84 @@
-# Stop the task from running on every future login
+# --- DEBUGGING HEADER ---
+Write-Host "--- PHASE 2 STARTING ---" -ForegroundColor Yellow
+$InfraDir = "C:\ProgramData\Complyable"
+
+# FIX: Force the script to look in the right folder
+if (Test-Path $InfraDir) { 
+    Set-Location $InfraDir 
+} else {
+    Write-Host "ERROR: Installation directory $InfraDir not found!" -ForegroundColor Red
+    Start-Sleep -Seconds 10
+    exit 1
+}
+
+Write-Host "Current Location: $((Get-Location).Path)" -ForegroundColor Gray
+Start-Sleep -Seconds 5  # Reduced to 5s for faster testing
+
+# 1. CLEANUP: Stop the task from running again
 Unregister-ScheduledTask -TaskName "Complyable-Phase2" -Confirm:$false -ErrorAction SilentlyContinue
 
-# Verify install is ready for phase2 
-$flagPath = "$env:ProgramData\Complyable\install_phase.txt"
+# 2. VERIFY: Ensure we are in the right state
+$flagPath = Join-Path $InfraDir "install_phase.txt"
 if (!(Test-Path $flagPath) -or (Get-Content $flagPath) -ne "phase2") {
-    Write-Host "Phase 2 flag not found. Exiting." -ForegroundColor Red
+    Write-Host "Phase 2 flag not found. If you just rebooted, this is an error." -ForegroundColor Red
+    Read-Host "Press Enter to exit..."
     exit 1
 }
-Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-trap {
-    Write-Host "`nERROR: $_" -ForegroundColor Red
-    Read-Host "Press Enter to close"
-    exit 1
-}
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+# 3. SETUP: Environment and Error Handling
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 $GHCR_TOKEN = "CUSTOMER_TOKEN_PLACEHOLDER"
 $GHCR_USER  = "doctype-melvin"
 $IMAGE      = "ghcr.io/doctype-melvin/complyable:latest"
-$InfraDir   = "$env:ProgramData\Complyable"
 
-function Write-Step($msg) { Write-Host ""; Write-Host "==> $msg" -ForegroundColor Cyan }
+function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function Write-Success($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
-function Write-Fail($msg) { Write-Host "[FAIL] $msg" -ForegroundColor Red; exit 1 }
+function Write-Fail($msg) { Write-Host "[FAIL] $msg" -ForegroundColor Red; Read-Host "Press Enter to exit..."; exit 1 }
 
-# Clean up resume task if this is a post-reboot run
-Unregister-ScheduledTask -TaskName "Complyable-Phase2" -Confirm:$false -ErrorAction SilentlyContinue
+trap {
+    Write-Host "`nFATAL ERROR: $_" -ForegroundColor Red
+    Read-Host "Press Enter to close"
+    exit 1
+}
 
+# 4. EXECUTION: Podman Logic
 Write-Step "Checking Podman Desktop..."
 $podman = Get-Command "podman" -ErrorAction SilentlyContinue
 
 if (-not $podman) {
     Write-Host "Podman not found. Downloading Podman Desktop..." -ForegroundColor Yellow
-
     $podmanUrl = "https://github.com/containers/podman-desktop/releases/latest/download/podman-desktop-setup.exe"
     $podmanInstaller = "$env:TEMP\podman-desktop-setup.exe"
 
-    Write-Host "Downloading..."
     Invoke-WebRequest -Uri $podmanUrl -OutFile $podmanInstaller -UseBasicParsing
-
-    Write-Host "Installing silently (this takes a few minutes)..."
+    Write-Host "Installing silently..."
     Start-Process -FilePath $podmanInstaller -ArgumentList "/S" -Wait
 
-    # Refresh PATH
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + `
-                [System.Environment]::GetEnvironmentVariable("Path", "User")
-
-    $timeout = 120; $elapsed = 0
-    while (-not (Get-Command "podman" -ErrorAction SilentlyContinue) -and $elapsed -lt $timeout) {
-        Start-Sleep -Seconds 5; $elapsed += 5
-        Write-Host "Waiting for Podman... ($elapsed s)"
-    }
-
-    if (-not (Get-Command "podman" -ErrorAction SilentlyContinue)) {
-        Write-Fail "Podman installation failed or timed out."
-    }
+    # Refresh Path
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 }
 Write-Success "Podman available"
 
 Write-Step "Initializing Podman machine..."
-$machineList = podman machine list 2>&1
-if ($machineList -notmatch "podman-machine-default") {
+if ((podman machine list 2>&1) -notmatch "podman-machine-default") {
     podman machine init --disk-size 20 --memory 2048
 }
 
-$machineStatus = podman machine list 2>&1
-if ($machineStatus -notmatch "Currently running") {
+if ((podman machine list 2>&1) -notmatch "Currently running") {
     podman machine start
 }
 Write-Success "Podman machine running"
 
-Write-Step "Authenticating with registry..."
+Write-Step "Authenticating and Pulling Image..."
 $GHCR_TOKEN | podman login ghcr.io -u $GHCR_USER --password-stdin
-Write-Success "Authenticated"
-
-Write-Step "Pulling Complyable image (this will take several minutes)..."
 podman pull $IMAGE
-Write-Success "Image downloaded"
+Write-Success "Image ready"
 
-Write-Host "`nPhase 2 complete. Proceeding to Phase 3..." -ForegroundColor Green
-
-# Launch phase 3
-$phase3 = "$InfraDir\phase3-launch.ps1"
+# 5. TRANSITION: Phase 3
+$phase3 = Join-Path $InfraDir "phase3-launch.ps1"
 if (Test-Path $phase3) {
+    Write-Host "`nLaunching UI..." -ForegroundColor Green
     & $phase3
 }
+
+Read-Host "`nInstallation Complete. Press Enter to finish..."
