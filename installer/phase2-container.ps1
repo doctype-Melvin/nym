@@ -1,3 +1,12 @@
+# Stop the task from running on every future login
+Unregister-ScheduledTask -TaskName "Complyable-Phase2" -Confirm:$false -ErrorAction SilentlyContinue
+
+# Verify install is ready for phase2 
+$flagPath = "$env:ProgramData\Complyable\install_phase.txt"
+if (!(Test-Path $flagPath) -or (Get-Content $flagPath) -ne "phase2") {
+    Write-Host "Phase 2 flag not found. Exiting." -ForegroundColor Red
+    exit 1
+}
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 trap {
     Write-Host "`nERROR: $_" -ForegroundColor Red
