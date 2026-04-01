@@ -6,7 +6,7 @@ DefaultGroupName=Complyable
 PrivilegesRequired=admin
 OutputDir=Output
 OutputBaseFilename=Complyable-Setup
-SetupIconFile=assets\COMPLYABLE.png
+SetupIconFile=.\assets\COMPLYABLE.ico
 UninstallDisplayName=Complyable
 
 [Files]
