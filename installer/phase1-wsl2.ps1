@@ -37,8 +37,7 @@ if ($wsl.State -ne "Enabled" -or $vm.State -ne "Enabled") {
     $taskName = "Complyable-Phase2"
     
     # The 'NoExit' flag is vital so the user can see the progress/errors in Phase 2
-    $action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-NoProfile -ExecutionPolicy Bypass -NoExit -File `"$phase2Script`""
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -NoExit -File `"$phase2Script`""
     
     # GroupId 'Users' ensures the window pops up on the interactive desktop
     $principal = New-ScheduledTaskPrincipal -GroupId "Users" -RunLevel Highest
@@ -60,6 +59,11 @@ if ($wsl.State -ne "Enabled" -or $vm.State -ne "Enabled") {
 Write-Success "WSL2 already enabled"
 Write-Host "`nPhase 1 complete. Starting Phase 2 immediately..." -ForegroundColor Green
 
-# If already enabled, just chain directly into Phase 2 without a reboot
-$phase2Path = Join-Path $env:ProgramData "Complyable\phase2-container.ps1"
-& $phase2Path
+# Use Join-Path properly to avoid manual quote/backslash issues
+$phase2Path = Join-Path -Path $env:ProgramData -ChildPath "Complyable\phase2-container.ps1"
+
+if (Test-Path $phase2Path) {
+    & $phase2Path
+} else {
+    Write-Fail "Phase 2 script not found at $phase2Path"
+}
