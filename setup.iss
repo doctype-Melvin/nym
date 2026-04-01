@@ -9,6 +9,7 @@ OutputDir=Output
 OutputBaseFilename=Complyable-Setup
 SetupIconFile=.\assets\COMPLYABLE.ico
 UninstallDisplayName=Complyable
+AlwaysShowDirOnReadyPage=yes
 
 [Files]
 Source: ".\installer\phase1-wsl2.ps1"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
@@ -18,7 +19,7 @@ Source: ".\installer\docker-compose.yml"; DestDir: "{commonappdata}\Complyable";
 
 [Run]
 Filename: "powershell.exe"; \
-    Parameters: "-ExecutionPolicy Bypass -File ""{commonappdata}\Complyable\phase1-wsl2.ps1"""; \
-    WorkingDir: "{commonappdata}\Complyable"; \
+    Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{commonappdata}\Complyable\phase1-wsl2.ps1"""; \
+    WorkingDir: "{app}"; \
     Flags: runascurrentuser waituntilterminated; \
-    StatusMsg: "Setting up Complyable..."
+    StatusMsg: "Initializing WSL2 and System Requirements..."
