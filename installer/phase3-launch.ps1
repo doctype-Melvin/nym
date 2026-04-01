@@ -4,8 +4,8 @@ $InfraDir   = "$env:ProgramData\Complyable"
 $AppDataDir = "$env:LOCALAPPDATA\Complyable"
 $IMAGE      = "ghcr.io/doctype-melvin/complyable:latest"
 
-function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
-function Write-Success($msg) { Write-Host "✓ $msg" -ForegroundColor Green }
+function Write-Step($msg) { Write-Host ""; Write-Host "==> $msg" -ForegroundColor Cyan }
+function Write-Success($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
 
 Write-Step "Creating app data directories..."
 New-Item -ItemType Directory -Force -Path "$AppDataDir\vault"  | Out-Null
