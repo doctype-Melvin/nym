@@ -18,8 +18,8 @@ Source: ".\installer\phase3-launch.ps1"; DestDir: "{commonappdata}\Complyable"; 
 Source: ".\installer\docker-compose.yml"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
 
 [Run]
-Filename: "powershell.exe"; \
-    Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{commonappdata}\Complyable\phase1-wsl2.ps1"""; \
-    WorkingDir: "{app}"; \
+Filename: "{cmd}"; \
+    Parameters: "/c %SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File ""{commonappdata}\Complyable\phase1-wsl2.ps1"""; \
+    WorkingDir: "{commonappdata}\Complyable"; \
     Flags: runascurrentuser waituntilterminated; \
-    StatusMsg: "Initializing WSL2 and System Requirements..."
+    StatusMsg: "Initializing WSL2 and System Requirements (This may take a minute)..."
