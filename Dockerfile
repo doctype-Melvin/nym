@@ -14,9 +14,13 @@ COPY requirements.txt .
 # Pre-install CPU-only torch and pin it as a constraint
 RUN pip install --no-cache-dir \
     torch==2.7.1+cpu \
+    torchvision==0.20.1+cpu \
     --extra-index-url https://download.pytorch.org/whl/cpu
 
-RUN printf "torch==2.7.1+cpu\ndocling-core==2.14.0\n" > /constraints.txt
+RUN echo "torch==2.7.1+cpu" > /constraints.txt && \
+    echo "torchvision==0.20.1+cpu" >> /constraints.txt && \
+    echo "docling-core==2.14.0" >> /constraints.txt && \
+
 ENV PIP_CONSTRAINT=/constraints.txt
 
 RUN pip install --no-cache-dir -r requirements.txt
