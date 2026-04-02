@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir \
     torch==2.7.1+cpu \
     --extra-index-url https://download.pytorch.org/whl/cpu
 
-RUN printf "torch==2.7.1+cpu\ndocling-core==2.14.0\ndocling-ibm-models==2.0.8\n" > /constraints.txt
+RUN printf "torch==2.7.1+cpu\ndocling-core==2.14.0\n" > /constraints.txt
 ENV PIP_CONSTRAINT=/constraints.txt
 
 RUN pip install --no-cache-dir -r requirements.txt
