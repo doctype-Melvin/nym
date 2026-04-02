@@ -4,11 +4,6 @@ numpy<2
 spacy==3.8.7
 docling==2.15.1
 docling-core==2.14.0
-<<<<<<< HEAD
-=======
-docling-ibm-models==2.0.8
-docling-parse==2.2.0
->>>>>>> clean-pilot
 fpdf2
 python-dotenv
 st-copy==1.1.2
