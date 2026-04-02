@@ -16,7 +16,10 @@ RUN pip install --no-cache-dir \
     torch==2.7.1+cpu \
     --extra-index-url https://download.pytorch.org/whl/cpu
 
-RUN echo "torch==2.7.1+cpu" > /constraints.txt
+RUN echo "torch==2.7.1+cpu" > /constraints.txt \
+    echo "docling-core==2.14.0" >> /constraints.txt && \
+    echo "docling-ibm-models==2.0.8" >> /constraints.txt && \
+    echo "docling-parse==2.2.0" >> /constraints.txt
 ENV PIP_CONSTRAINT=/constraints.txt
 
 RUN pip install --no-cache-dir -r requirements.txt
