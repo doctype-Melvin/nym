@@ -1,7 +1,7 @@
 # Complyable Pilot Deployment Script
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 
-$IMAGE = "ghcr.io/doctype-melvin/complyable:latest"
+$IMAGE = "ghcr.io/doctype-melvin/complyable:linux-amd64"
 $CONTAINER_NAME = "complyable-app"
 $PODMAN_PATH = "C:\Program Files\RedHat\Podman"
 
