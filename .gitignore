@@ -5,3 +5,8 @@ ui/__pycache__/
 **/*.pyc
 data/vault/
 data/output/
+ui/__pycache__/database.cpython-312.pyc
+ui/__pycache__/logic.cpython-312.pyc
+ui/__pycache__/pipeline.cpython-312.pyc
+ui/__pycache__/styles.cpython-312.pyc
+ui/__pycache__/workflow.cpython-312.pyc
