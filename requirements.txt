@@ -2,7 +2,7 @@ streamlit==1.55.0
 pandas
 numpy<2
 spacy==3.8.7
-docling==2.29.0
+docling==2.0.0
 fpdf2
 python-dotenv
 st-copy==1.1.2
