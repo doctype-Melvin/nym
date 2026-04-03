@@ -7,19 +7,19 @@ DefaultGroupName=Complyable
 PrivilegesRequired=admin
 OutputDir=Output
 OutputBaseFilename=Complyable-Setup
-SetupIconFile=.\assets\COMPLYABLE.ico
+SetupIconFile=.\assets\Comon.ico
 UninstallDisplayName=Complyable
 AlwaysShowDirOnReadyPage=yes
 
 [Icons]
-Name: "{commondesktop}\Start Complyable"; Filename: "{commonappdata}\Complyable\launcher.bat"; IconFilename: "{app}\assets\COMPLYABLE.ico"
-Name: "{commondesktop}\Shutdown Complyable"; Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command ""podman machine stop"""; IconFilename: "{app}\assets\shutdown.ico"
+Name: "{commondesktop}\Start Complyable"; Filename: "{commonappdata}\Complyable\launcher.bat"; IconFilename: "{app}\assets\Comon.ico"
+Name: "{commondesktop}\Stop Complyable"; Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command ""podman machine stop"""; IconFilename: "{app}\assets\Comoff.ico"
 
 [Files]
 Source: ".\installer\install-complyable.ps1"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
 Source: ".\installer\launcher.bat"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
-Source: ".\assets\COMPLYABLE.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
-Source: ".\assets\shutdown.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
+Source: ".\assets\Comon.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
+Source: ".\assets\Comoff.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
 
 [Run]
 Filename: "{commonappdata}\Complyable\launcher.bat"; \

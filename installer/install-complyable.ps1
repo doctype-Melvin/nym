@@ -1,11 +1,11 @@
-# --- 0. SELF-ELEVATION (Fixes Error 740) ---
+# --- SELF-ELEVATION ---
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "Requesting Administrator privileges..." -ForegroundColor Yellow
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     exit
 }
 
-# --- 1. GLOBAL CONFIGURATION ---
+# --- GLOBAL CONFIGURATION ---
 $IMAGE = "ghcr.io/doctype-melvin/complyable:linux-amd64"
 $CONTAINER_NAME = "complyable-app"
 $PODMAN_PATH = "C:\Program Files\RedHat\Podman"
@@ -17,7 +17,7 @@ $WSL_EXE = "$env:SystemRoot\System32\wsl.exe"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 
-# --- 2. THE FAST-TRACK (For subsequent launches) ---
+# --- THE FAST-TRACK (For subsequent launches) ---
 if (Test-Path $FLAG_FILE) {
     Write-Host "Complyable is already installed. Waking up services..." -ForegroundColor Green
     
@@ -41,7 +41,7 @@ if (Test-Path $FLAG_FILE) {
 
 function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 
-# --- 3. PHASE 0: Pre-Flight (WSL & Virtualization) ---
+# --- PHASE 0: Pre-Flight (WSL & Virtualization) ---
 Write-Step "Checking System Requirements..."
 $wslFeat = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
 $vmFeat = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
@@ -61,14 +61,14 @@ if ($wslFeat.State -ne "Enabled" -or $vmFeat.State -ne "Enabled") {
     exit
 }
 
-# --- 4. PHASE 1: Podman Installation (Winget) ---
+# --- PHASE 1: Podman Installation (Winget) ---
 if (!(Get-Command podman -ErrorAction SilentlyContinue)) {
     Write-Step "Installing Podman via Winget..."
     winget install -e --id RedHat.Podman --silent --accept-source-agreements --accept-package-agreements
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 }
 
-# --- 5. PHASE 2: Podman Init (Ghost Buster Logic) ---
+# --- PHASE 2: Podman Init (Ghost Buster Logic) ---
 Write-Step "Initializing Podman Environment..."
 $initResult = & "$PODMAN_PATH\podman.exe" machine init --disk-size 20 --memory 4096 --rootful 2>&1
 if ($initResult -match "already exists") {
@@ -77,7 +77,7 @@ if ($initResult -match "already exists") {
     & "$PODMAN_PATH\podman.exe" machine init --disk-size 20 --memory 4096 --rootful
 }
 
-# --- 6. PHASE 3: Networking & Services ---
+# --- PHASE 3: Networking & Services ---
 Write-Step "Starting Machine & Network Bridge..."
 & "$PODMAN_PATH\podman.exe" machine start
 
@@ -86,7 +86,7 @@ if (!(Get-Process gvproxy -ErrorAction SilentlyContinue)) {
     Start-Sleep -Seconds 5
 }
 
-# --- PHASE 3.5: Authenticate & Pull (Private Repo) ---
+# --- Authenticate & Pull (Private Repo) ---
 Write-Step "Authenticating with GitHub Container Registry..."
 
 # For the Pilot, you would replace this with a variable or a secure prompt
@@ -100,10 +100,10 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-Step "Pulling Private Complyable Image..."
+Write-Step "Pulling Complyable Image..."
 & "$PODMAN_PATH\podman.exe" pull $IMAGE
 
-# --- 7. PHASE 4: Container Launch & Mirroring ---
+# --- PHASE 4: Container Launch & Mirroring ---
 Write-Step "Launching Complyable App..."
 $BASE_DIR = "C:\Complyable"
 $VAULT = "$BASE_DIR\Vault"
@@ -123,11 +123,18 @@ netsh interface portproxy reset
   -v "$($OUTPUT):/app/data/output:Z" `
   $IMAGE
 
-# --- 8. PHASE 5: Custom URL & Finalizing ---
+# --- Custom URL & Finalizing ---
 $hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
 if (!(Select-String -Path $hostsPath -Pattern "complyable.local")) {
     Add-Content -Path $hostsPath -Value "`n127.0.0.1    complyable.local" -ErrorAction SilentlyContinue
 }
+
+Write-Host "`nWaiting for Complyable to warm up..." -ForegroundColor Yellow
+for ($i=10; $i -gt 0; $i--) { 
+    Write-Host "$i... " -NoNewline -ForegroundColor Gray
+    Start-Sleep -Seconds 1 
+}
+Write-Host "Complyable Is Ready!`n" -ForegroundColor Green
 
 New-Item -Path $FLAG_FILE -ItemType File -Force | Out-Null
 Start-Process "http://complyable.local:8501"
