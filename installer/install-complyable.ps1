@@ -12,17 +12,19 @@ function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 Write-Step "Checking System Requirements..."
 
 # 1. Check WSL Feature
-$wslFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
-if ($wslFeature.State -ne "Enabled") {
-    Write-Host "==> WSL Feature is missing. Enabling now..." -ForegroundColor Yellow
-    Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux, VirtualMachinePlatform -NoRestart
+$wslCheck = dism.exe /online /get-features /format:table | Select-String "Microsoft-Windows-Subsystem-Linux"
+if ($wslCheck -match "Disabled") {
+    Write-Host "==> WSL Feature is missing. Enabling via DISM..." -ForegroundColor Yellow
+    
+    # Enable WSL & VirtualMachinePlatform with a visible progress bar
+    dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+    dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
     
     # Set Resume Key for Reboot
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce" -Name "ResumeComplyable" -Value "$LAUNCHER"
     
-    Write-Host "`n[REBOOT REQUIRED] Windows features enabled." -ForegroundColor Red
-    Write-Host "Installation will resume automatically after login."
-    Write-Host "Press any key to REBOOT NOW..." -ForegroundColor Yellow
+    Write-Host "`n[REBOOT REQUIRED] Features enabled successfully." -ForegroundColor Red
+    Write-Host "Press any key to REBOOT NOW and finish installation..." -ForegroundColor Yellow
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     Restart-Computer
     exit
