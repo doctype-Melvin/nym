@@ -93,7 +93,7 @@ Write-Host "WSL Engine Status:" -ForegroundColor Yellow
 Write-Host $wslState
 
 # Check if Virtualization is enabled (The most common "Bare Metal" fail point)
-$feat = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
+$feat = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue
 Write-Host "Virtualization Platform: $($feat.State)" -ForegroundColor Gray
 
 # Using Host-to-Container Mapping for Visibility
@@ -124,3 +124,9 @@ Write-Host "`n============================================" -ForegroundColor Gre
 Write-Host " SUCCESS: Complyable is deployed at http://complyable.local:8501" -ForegroundColor Green
 Write-Host " Files are mirrored at: $BASE_DIR" -ForegroundColor Green
 Write-Host "============================================`n"
+
+Write-Host "Closing this window in 3 seconds..." -ForegroundColor Gray
+Start-Sleep -Seconds 3
+
+# This forces the PowerShell process to kill itself and its parent window
+Stop-Process -Id $PID
