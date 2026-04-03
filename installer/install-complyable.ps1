@@ -86,6 +86,23 @@ if (!(Get-Process gvproxy -ErrorAction SilentlyContinue)) {
     Start-Sleep -Seconds 5
 }
 
+# --- PHASE 3.5: Authenticate & Pull (Private Repo) ---
+Write-Step "Authenticating with GitHub Container Registry..."
+
+# For the Pilot, you would replace this with a variable or a secure prompt
+$GHCR_TOKEN = "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" 
+$GHCR_USER = "doctype-melvin"
+
+$GHCR_TOKEN | & "$PODMAN_PATH\podman.exe" login ghcr.io -u $GHCR_USER --password-stdin
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Authentication failed. Please check your Token and Internet connection."
+    exit 1
+}
+
+Write-Step "Pulling Private Complyable Image..."
+& "$PODMAN_PATH\podman.exe" pull $IMAGE
+
 # --- 7. PHASE 4: Container Launch & Mirroring ---
 Write-Step "Launching Complyable App..."
 $BASE_DIR = "C:\Complyable"
@@ -93,8 +110,9 @@ $VAULT = "$BASE_DIR\Vault"
 $OUTPUT = "$BASE_DIR\Output"
 New-Item -ItemType Directory -Force -Path $VAULT, $OUTPUT | Out-Null
 
-# Clear port conflicts
+# Clear port conflicts and possible podman residue
 netsh interface portproxy reset
+& "$PODMAN_PATH\podman.exe" rm -f $CONTAINER_NAME 2>$null
 
 # Final Run
 & "$PODMAN_PATH\podman.exe" run -d `
