@@ -1,4 +1,4 @@
-# Complyable Pilot Deployment Script - "Bare Metal" Edition
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 
 $IMAGE = "ghcr.io/doctype-melvin/complyable:linux-amd64"
@@ -32,12 +32,31 @@ if ($wslCheck -match "Disabled") {
 
 # 2. Check Podman Binary
 if (!(Get-Command podman -ErrorAction SilentlyContinue)) {
-    Write-Host "==> Podman not found. Installing..." -ForegroundColor Yellow
-    $msiPath = "$env:TEMP\podman.msi"
-    Invoke-WebRequest -Uri "https://github.com/containers/podman/releases/download/v5.0.1/podman-v5.0.1.msi" -OutFile $msiPath
+    Write-Host "==> Podman not found. Starting Installation..." -ForegroundColor Yellow
+    
+    $msiPath = "$env:TEMP\podman-installer.msi"
+    $url = "https://github.com/containers/podman/releases/download/v5.0.1/podman-v5.0.1.msi"
+    
+    try {
+        Write-Host "Downloading Podman MSI from GitHub..."
+        Invoke-WebRequest -Uri $url -OutFile $msiPath -UserAgent "Mozilla/5.0"
+    } catch {
+        Write-Error "Download failed. Please check your internet connection or TLS settings."
+        exit 1
+    }
+    
+    Write-Host "Installing Podman... Please wait."
     Start-Process msiexec.exe -ArgumentList "/i `"$msiPath`" /quiet /qn /norestart" -Wait
-    # Refresh Path for current session
+    
+    # REFRESH PATH: This is why your previous run failed even if it had installed
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+}
+
+# --- Check again after install ---
+if (!(Get-Command podman -ErrorAction SilentlyContinue)) {
+    Write-Host "CRITICAL: Podman was installed but is not in the Path. Please RESTART this installer." -ForegroundColor Red
+    Pause
+    exit
 }
 
 # --- PHASE 1: Initialize Podman Machine ---
