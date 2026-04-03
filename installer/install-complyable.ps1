@@ -88,7 +88,7 @@ Write-Step "Network & WSL Health Audit..."
 netsh interface portproxy reset
 
 # Show the actual WSL state to the user
-$wslState = wsl -l -v
+$wslState = & "$env:SystemRoot\System32\wsl.exe" -l -v
 Write-Host "WSL Engine Status:" -ForegroundColor Yellow
 Write-Host $wslState
 
