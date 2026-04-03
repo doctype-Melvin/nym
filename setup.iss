@@ -11,6 +11,10 @@ SetupIconFile=.\assets\COMPLYABLE.ico
 UninstallDisplayName=Complyable
 AlwaysShowDirOnReadyPage=yes
 
+[Icons]
+Name: "{commondesktop}\Start Complyable"; Filename: "{commonappdata}\Complyable\launcher.bat"; IconFilename: "{app}\complyable_start.ico"
+Name: "{commondesktop}\Shutdown Complyable"; Filename: "powershell.exe"; Parameters: "-Command ""podman machine stop"""; IconFilename: "{app}\complyable_stop.ico"
+
 [Files]
 Source: ".\installer\install-complyable.ps1"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
 Source: ".\installer\launcher.bat"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
