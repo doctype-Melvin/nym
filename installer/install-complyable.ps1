@@ -1,42 +1,38 @@
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+# --- 0. SELF-ELEVATION (Fixes Error 740) ---
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Host "Requesting Administrator privileges..." -ForegroundColor Yellow
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    exit
+}
 
+# --- 1. GLOBAL CONFIGURATION ---
 $IMAGE = "ghcr.io/doctype-melvin/complyable:linux-amd64"
 $CONTAINER_NAME = "complyable-app"
 $PODMAN_PATH = "C:\Program Files\RedHat\Podman"
 $LAUNCHER = "$env:ProgramData\Complyable\launcher.bat"
 $FLAG_FILE = "$env:ProgramData\Complyable\installed.flag"
+$WSL_EXE = "$env:SystemRoot\System32\wsl.exe"
 
-# --- Bypass Checks if Installed ---
+# Force modern TLS and Path Refresh for the session
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+# --- 2. THE FAST-TRACK (For subsequent launches) ---
 if (Test-Path $FLAG_FILE) {
-    # 1. Force refresh the PATH so the script can see "podman"
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-
-    Write-Host "Complyable is already installed. Starting services..." -ForegroundColor Green
+    Write-Host "Complyable is already installed. Waking up services..." -ForegroundColor Green
     
-    # 2. Define the absolute path to Podman to avoid "CommandNotFound"
-    $PODMAN_EXE = "$PODMAN_PATH\podman.exe"
-
-    # Ensure Podman is actually running
-    # We use & to execute the string path
-    $machineStatus = & $PODMAN_EXE machine inspect --format "{{.State}}" 2>$null
-    
-    if ($machineStatus -ne "running") {
-        Write-Host "Waking up Podman..." -ForegroundColor Cyan
-        & $PODMAN_EXE machine start
+    # Check if Podman is running
+    $status = & "$PODMAN_PATH\podman.exe" machine inspect --format "{{.State}}" 2>$null
+    if ($status -ne "running") {
+        & "$PODMAN_PATH\podman.exe" machine start
     }
     
-    # Start gvproxy watchdog
-    $proxy = Get-Process gvproxy -ErrorAction SilentlyContinue
-    if (-not $proxy) {
-        Write-Host "Starting Network Bridge..." -ForegroundColor Gray
+    # Ensure gvproxy is alive
+    if (!(Get-Process gvproxy -ErrorAction SilentlyContinue)) {
         Start-Process "$PODMAN_PATH\gvproxy.exe" -ArgumentList "-ssh-port 2222 -listen-no-zap" -WindowStyle Hidden
     }
     
-    # Ensure Container is running
-    & $PODMAN_EXE start $CONTAINER_NAME 2>$null
-    
-    # Open Browser and Exit
+    & "$PODMAN_PATH\podman.exe" start $CONTAINER_NAME 2>$null
     Start-Process "http://complyable.local:8501"
     Start-Sleep -Seconds 3
     Stop-Process -Id $PID
@@ -45,126 +41,80 @@ if (Test-Path $FLAG_FILE) {
 
 function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 
-# --- PHASE 0: Pre-Flight Checks (Podman & WSL) ---
+# --- 3. PHASE 0: Pre-Flight (WSL & Virtualization) ---
 Write-Step "Checking System Requirements..."
+$wslFeat = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
+$vmFeat = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
 
-$wslPath = "$env:SystemRoot\System32\wsl.exe"
-$feat = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
-
-# Check if feature is missing OR if the wsl.exe binary is actually gone
-if ($feat.State -ne "Enabled" -or !(Test-Path $wslPath)) {
-    Write-Host "==> WSL or Virtualization Platform is not ready. Configuring..." -ForegroundColor Yellow
+if ($wslFeat.State -ne "Enabled" -or $vmFeat.State -ne "Enabled") {
+    Write-Host "Enabling WSL and Virtualization Platform..." -ForegroundColor Yellow
+    dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart /quiet
+    dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart /quiet
     
-    dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
-    dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
-    
-    # Set Resume Key
+    # Set the Resume key so it continues after reboot
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce" -Name "ResumeComplyable" -Value "$LAUNCHER"
     
-    Write-Host "`n[REBOOT REQUIRED] System features updated." -ForegroundColor Red
+    Write-Host "`n[REBOOT REQUIRED] System features enabled." -ForegroundColor Red
     Write-Host "Press any key to REBOOT NOW..." -ForegroundColor Yellow
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     Restart-Computer
     exit
 }
 
-# 2. Check Podman Binary
+# --- 4. PHASE 1: Podman Installation (Winget) ---
 if (!(Get-Command podman -ErrorAction SilentlyContinue)) {
-    Write-Step "Podman not found. Installing via Winget..."
-    
-    # -e (Exact ID), --silent (No UI), --accept-source-agreements (Bypass prompts)
+    Write-Step "Installing Podman via Winget..."
     winget install -e --id RedHat.Podman --silent --accept-source-agreements --accept-package-agreements
-    
-    # REFRESH PATH: Mandatory for the current session to see the new 'podman' command
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-    
-    if (!(Get-Command podman -ErrorAction SilentlyContinue)) {
-        Write-Error "Winget installation failed to register 'podman'. Please restart the installer."
-        exit 1
-    }
 }
 
-# --- PHASE 1: Initialize Podman Machine ---
+# --- 5. PHASE 2: Podman Init (Ghost Buster Logic) ---
 Write-Step "Initializing Podman Environment..."
-$initTry = podman machine init --disk-size 20 --memory 4096 --rootful 2>&1
-if ($initTry -match "already exists") {
-    Write-Host "Ghost VM detected. Force-clearing Hypervisor..." -ForegroundColor Yellow
-    & "$env:SystemRoot\System32\wsl.exe" --unregister podman-machine-default
-    podman machine init --disk-size 20 --memory 4096 --rootful
+$initResult = & "$PODMAN_PATH\podman.exe" machine init --disk-size 20 --memory 4096 --rootful 2>&1
+if ($initResult -match "already exists") {
+    Write-Host "Detected Ghost VM. Force-cleaning WSL Registration..." -ForegroundColor Yellow
+    & $WSL_EXE --unregister podman-machine-default
+    & "$PODMAN_PATH\podman.exe" machine init --disk-size 20 --memory 4096 --rootful
 }
 
-# --- PHASE 2: Start Machine & Network Bridge ---
+# --- 6. PHASE 3: Networking & Services ---
 Write-Step "Starting Machine & Network Bridge..."
-podman machine start
+& "$PODMAN_PATH\podman.exe" machine start
 
-# WATCHDOG: Force gvproxy
-$proxy = Get-Process gvproxy -ErrorAction SilentlyContinue
-if (-not $proxy) {
-    Write-Host "Manual Watchdog: Starting gvproxy.exe..." -ForegroundColor Yellow
+if (!(Get-Process gvproxy -ErrorAction SilentlyContinue)) {
     Start-Process "$PODMAN_PATH\gvproxy.exe" -ArgumentList "-ssh-port 2222 -listen-no-zap" -WindowStyle Hidden
     Start-Sleep -Seconds 5
 }
 
-# --- PHASE 3: Prepare Mirroring & Volumes ---
-Write-Step "Preparing Data Mirroring..."
-# Create local folders for the user to see
+# --- 7. PHASE 4: Container Launch & Mirroring ---
+Write-Step "Launching Complyable App..."
 $BASE_DIR = "C:\Complyable"
 $VAULT = "$BASE_DIR\Vault"
 $OUTPUT = "$BASE_DIR\Output"
 New-Item -ItemType Directory -Force -Path $VAULT, $OUTPUT | Out-Null
 
-# --- PHASE 4: Launch Container ---
-Write-Step "Launching Complyable..."
-podman rm -f $CONTAINER_NAME 2>$null
-
-Write-Step "Network & WSL Health Audit..."
-
-# Clear any legacy portproxy rules that might conflict
+# Clear port conflicts
 netsh interface portproxy reset
 
-# Show the actual WSL state to the user
-$wslState = & "$env:SystemRoot\System32\wsl.exe" -l -v
-Write-Host "WSL Engine Status:" -ForegroundColor Yellow
-Write-Host $wslState
-
-# Check if Virtualization is enabled (The most common "Bare Metal" fail point)
-$feat = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue
-Write-Host "Virtualization Platform: $($feat.State)" -ForegroundColor Gray
-
-# Using Host-to-Container Mapping for Visibility
-podman run -d `
+# Final Run
+& "$PODMAN_PATH\podman.exe" run -d `
   --name $CONTAINER_NAME `
   --restart unless-stopped `
   -p 8501:8501 `
-  -e "STREAMLIT_SERVER_HEADLESS=true" `
   -v "$($VAULT):/app/data/vault:Z" `
   -v "$($OUTPUT):/app/data/output:Z" `
   $IMAGE
 
-# --- PHASE 5: Custom URL Setup (Hosts File) ---
+# --- 8. PHASE 5: Custom URL & Finalizing ---
 $hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
-$hostEntry = "127.0.0.1    complyable.local"
 if (!(Select-String -Path $hostsPath -Pattern "complyable.local")) {
-    Write-Step "Setting up custom URL: http://complyable.local:8501"
-    Add-Content -Path $hostsPath -Value "`n$hostEntry" -ErrorAction SilentlyContinue
+    Add-Content -Path $hostsPath -Value "`n127.0.0.1    complyable.local" -ErrorAction SilentlyContinue
 }
 
-# --- PHASE 6: Finish ---
-Write-Host "`nWaiting for app to stabilize..." -ForegroundColor Yellow
-for ($i=10; $i -gt 0; $i--) { Write-Host "$i... " -NoNewline; Start-Sleep 1 }
-
+New-Item -Path $FLAG_FILE -ItemType File -Force | Out-Null
 Start-Process "http://complyable.local:8501"
 
-Write-Host "`n============================================" -ForegroundColor Green
-Write-Host " SUCCESS: Complyable is deployed at http://complyable.local:8501" -ForegroundColor Green
-Write-Host " Files are mirrored at: $BASE_DIR" -ForegroundColor Green
-Write-Host "============================================`n"
-
-New-Item -Path $FLAG_FILE -ItemType File -Force | Out-Null
-Write-Host "Installation Flag Created." -ForegroundColor Gray
-
-Write-Host "Closing this window in 3 seconds..." -ForegroundColor Gray
+Write-Host "`nSUCCESS: Complyable is deployed." -ForegroundColor Green
+Write-Host "Closing in 3 seconds..."
 Start-Sleep -Seconds 3
-
-# This forces the PowerShell process to kill itself and its parent window
 Stop-Process -Id $PID
