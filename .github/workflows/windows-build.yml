@@ -4,6 +4,7 @@ on:
     branches: [ main ]
     paths:
       - 'installer/**'
+      - 'setup.iss'
   workflow_dispatch:
 
 jobs:
