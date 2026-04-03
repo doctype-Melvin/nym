@@ -38,25 +38,27 @@ if (!(Get-Command podman -ErrorAction SilentlyContinue)) {
     $url = "https://github.com/containers/podman/releases/download/v5.0.1/podman-v5.0.1.msi"
     
     try {
-        Write-Host "Downloading Podman MSI from GitHub..."
-        Invoke-WebRequest -Uri $url -OutFile $msiPath -UserAgent "Mozilla/5.0"
+        Write-Host "Downloading Podman MSI (Using BITS for stability)..."
+        # BITS is much more resilient than Invoke-WebRequest
+        Import-Module BitsTransfer
+        Start-BitsTransfer -Source $url -Destination $msiPath -ErrorAction Stop
     } catch {
-        Write-Error "Download failed. Please check your internet connection or TLS settings."
-        exit 1
+        Write-Host "BITS failed. Trying fallback with Header modification..." -ForegroundColor Gray
+        try {
+            # Fallback: Force TLS1.2 + Basic Parsing + UserAgent
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest -Uri $url -OutFile $msiPath -UserAgent "Mozilla/5.0" -UseBasicParsing
+        } catch {
+            Write-Error "All download methods failed. Please check if https://github.com is blocked."
+            exit 1
+        }
     }
     
     Write-Host "Installing Podman... Please wait."
     Start-Process msiexec.exe -ArgumentList "/i `"$msiPath`" /quiet /qn /norestart" -Wait
     
-    # REFRESH PATH: This is why your previous run failed even if it had installed
+    # REFRESH PATH
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-}
-
-# --- Check again after install ---
-if (!(Get-Command podman -ErrorAction SilentlyContinue)) {
-    Write-Host "CRITICAL: Podman was installed but is not in the Path. Please RESTART this installer." -ForegroundColor Red
-    Pause
-    exit
 }
 
 # --- PHASE 1: Initialize Podman Machine ---
