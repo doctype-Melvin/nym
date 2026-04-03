@@ -1,7 +1,7 @@
 # Complyable Pilot Deployment Script - "Bare Metal" Edition
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 
-$IMAGE = "ghcr.io/doctype-melvin/complyable:latest" # Ensure this is your AMD64 build
+$IMAGE = "ghcr.io/doctype-melvin/complyable:linux-amd64"
 $CONTAINER_NAME = "complyable-app"
 $PODMAN_PATH = "C:\Program Files\RedHat\Podman"
 $LAUNCHER = "$env:ProgramData\Complyable\launcher.bat"
