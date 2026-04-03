@@ -48,20 +48,21 @@ function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 # --- PHASE 0: Pre-Flight Checks (Podman & WSL) ---
 Write-Step "Checking System Requirements..."
 
-# 1. Check WSL Feature
-$wslCheck = dism.exe /online /get-features /format:table | Select-String "Microsoft-Windows-Subsystem-Linux"
-if ($wslCheck -match "Disabled") {
-    Write-Host "==> WSL Feature is missing. Enabling via DISM..." -ForegroundColor Yellow
+$wslPath = "$env:SystemRoot\System32\wsl.exe"
+$feat = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
+
+# Check if feature is missing OR if the wsl.exe binary is actually gone
+if ($feat.State -ne "Enabled" -or !(Test-Path $wslPath)) {
+    Write-Host "==> WSL or Virtualization Platform is not ready. Configuring..." -ForegroundColor Yellow
     
-    # Enable WSL & VirtualMachinePlatform with a visible progress bar
     dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
     dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
     
-    # Set Resume Key for Reboot
+    # Set Resume Key
     Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce" -Name "ResumeComplyable" -Value "$LAUNCHER"
     
-    Write-Host "`n[REBOOT REQUIRED] Features enabled successfully." -ForegroundColor Red
-    Write-Host "Press any key to REBOOT NOW and finish installation..." -ForegroundColor Yellow
+    Write-Host "`n[REBOOT REQUIRED] System features updated." -ForegroundColor Red
+    Write-Host "Press any key to REBOOT NOW..." -ForegroundColor Yellow
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     Restart-Computer
     exit
@@ -85,13 +86,10 @@ if (!(Get-Command podman -ErrorAction SilentlyContinue)) {
 
 # --- PHASE 1: Initialize Podman Machine ---
 Write-Step "Initializing Podman Environment..."
-try {
-    $status = podman machine list
-    if ($status -notmatch "podman-machine-default") {
-        podman machine init --disk-size 20 --memory 4096 --rootful
-    }
-} catch {
-    Write-Host "First-time init starting..."
+$initTry = podman machine init --disk-size 20 --memory 4096 --rootful 2>&1
+if ($initTry -match "already exists") {
+    Write-Host "Ghost VM detected. Force-clearing Hypervisor..." -ForegroundColor Yellow
+    & "$env:SystemRoot\System32\wsl.exe" --unregister podman-machine-default
     podman machine init --disk-size 20 --memory 4096 --rootful
 }
 
