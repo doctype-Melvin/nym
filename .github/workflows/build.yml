@@ -3,6 +3,11 @@ name: Build and Push Complyable
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'complyable_app/**'
+      - 'Dockerfile'
+      - 'requirements.txt'
+  workflow_dispatch:
 
 jobs:
   build:
