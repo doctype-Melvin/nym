@@ -6,6 +6,34 @@ $CONTAINER_NAME = "complyable-app"
 $PODMAN_PATH = "C:\Program Files\RedHat\Podman"
 $LAUNCHER = "$env:ProgramData\Complyable\launcher.bat"
 
+$FLAG_FILE = "$env:ProgramData\Complyable\installed.flag"
+
+# --- THE FAST-TRACK (Bypass Checks if Installed) ---
+if (Test-Path $FLAG_FILE) {
+    Write-Host "Complyable is already installed. Starting services..." -ForegroundColor Green
+    
+    # Ensure Podman is actually running
+    $machineStatus = podman machine inspect --format "{{.State}}" 2>$null
+    if ($machineStatus -ne "running") {
+        Write-Host "Waking up Podman..." -ForegroundColor Cyan
+        podman machine start
+    }
+    
+    # Start gvproxy watchdog
+    $proxy = Get-Process gvproxy -ErrorAction SilentlyContinue
+    if (-not $proxy) {
+        Start-Process "$PODMAN_PATH\gvproxy.exe" -ArgumentList "-ssh-port 2222 -listen-no-zap" -WindowStyle Hidden
+    }
+    
+    # Ensure Container is running
+    podman start $CONTAINER_NAME 2>$null
+    
+    # Open Browser and Exit
+    Start-Process "http://complyable.local:8501"
+    Start-Sleep -Seconds 3
+    Stop-Process -Id $PID
+}
+
 function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 
 # --- PHASE 0: Pre-Flight Checks (Podman & WSL) ---
@@ -124,6 +152,9 @@ Write-Host "`n============================================" -ForegroundColor Gre
 Write-Host " SUCCESS: Complyable is deployed at http://complyable.local:8501" -ForegroundColor Green
 Write-Host " Files are mirrored at: $BASE_DIR" -ForegroundColor Green
 Write-Host "============================================`n"
+
+New-Item -Path $FLAG_FILE -ItemType File -Force | Out-Null
+Write-Host "Installation Flag Created." -ForegroundColor Gray
 
 Write-Host "Closing this window in 3 seconds..." -ForegroundColor Gray
 Start-Sleep -Seconds 3
