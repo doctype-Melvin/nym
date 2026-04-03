@@ -32,33 +32,18 @@ if ($wslCheck -match "Disabled") {
 
 # 2. Check Podman Binary
 if (!(Get-Command podman -ErrorAction SilentlyContinue)) {
-    Write-Host "==> Podman not found. Starting Installation..." -ForegroundColor Yellow
+    Write-Step "Podman not found. Installing via Winget..."
     
-    $msiPath = "$env:TEMP\podman-installer.msi"
-    $url = "https://github.com/containers/podman/releases/download/v5.0.1/podman-v5.0.1.msi"
+    # -e (Exact ID), --silent (No UI), --accept-source-agreements (Bypass prompts)
+    winget install -e --id RedHat.Podman --silent --accept-source-agreements --accept-package-agreements
     
-    try {
-        Write-Host "Downloading Podman MSI (Using BITS for stability)..."
-        # BITS is much more resilient than Invoke-WebRequest
-        Import-Module BitsTransfer
-        Start-BitsTransfer -Source $url -Destination $msiPath -ErrorAction Stop
-    } catch {
-        Write-Host "BITS failed. Trying fallback with Header modification..." -ForegroundColor Gray
-        try {
-            # Fallback: Force TLS1.2 + Basic Parsing + UserAgent
-            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-            Invoke-WebRequest -Uri $url -OutFile $msiPath -UserAgent "Mozilla/5.0" -UseBasicParsing
-        } catch {
-            Write-Error "All download methods failed. Please check if https://github.com is blocked."
-            exit 1
-        }
-    }
-    
-    Write-Host "Installing Podman... Please wait."
-    Start-Process msiexec.exe -ArgumentList "/i `"$msiPath`" /quiet /qn /norestart" -Wait
-    
-    # REFRESH PATH
+    # REFRESH PATH: Mandatory for the current session to see the new 'podman' command
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+    
+    if (!(Get-Command podman -ErrorAction SilentlyContinue)) {
+        Write-Error "Winget installation failed to register 'podman'. Please restart the installer."
+        exit 1
+    }
 }
 
 # --- PHASE 1: Initialize Podman Machine ---
@@ -96,6 +81,20 @@ New-Item -ItemType Directory -Force -Path $VAULT, $OUTPUT | Out-Null
 # --- PHASE 4: Launch Container ---
 Write-Step "Launching Complyable..."
 podman rm -f $CONTAINER_NAME 2>$null
+
+Write-Step "Network & WSL Health Audit..."
+
+# Clear any legacy portproxy rules that might conflict
+netsh interface portproxy reset
+
+# Show the actual WSL state to the user
+$wslState = wsl -l -v
+Write-Host "WSL Engine Status:" -ForegroundColor Yellow
+Write-Host $wslState
+
+# Check if Virtualization is enabled (The most common "Bare Metal" fail point)
+$feat = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
+Write-Host "Virtualization Platform: $($feat.State)" -ForegroundColor Gray
 
 # Using Host-to-Container Mapping for Visibility
 podman run -d `
