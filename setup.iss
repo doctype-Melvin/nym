@@ -12,12 +12,14 @@ UninstallDisplayName=Complyable
 AlwaysShowDirOnReadyPage=yes
 
 [Icons]
-Name: "{commondesktop}\Start Complyable"; Filename: "{commonappdata}\Complyable\launcher.bat"; IconFilename: "{app}\complyable_start.ico"
-Name: "{commondesktop}\Shutdown Complyable"; Filename: "powershell.exe"; Parameters: "-Command ""podman machine stop"""; IconFilename: "{app}\complyable_stop.ico"
+Name: "{commondesktop}\Start Complyable"; Filename: "{commonappdata}\Complyable\launcher.bat"; IconFilename: "{app}\assets\COMPLYABLE.ico"
+Name: "{commondesktop}\Shutdown Complyable"; Filename: "powershell.exe"; Parameters: "-ExecutionPolicy Bypass -Command ""podman machine stop"""; IconFilename: "{app}\assets\shutdown.ico"
 
 [Files]
 Source: ".\installer\install-complyable.ps1"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
 Source: ".\installer\launcher.bat"; DestDir: "{commonappdata}\Complyable"; Flags: ignoreversion
+Source: ".\assets\COMPLYABLE.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
+Source: ".\assets\shutdown.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
 
 [Run]
 Filename: "{commonappdata}\Complyable\launcher.bat"; \
