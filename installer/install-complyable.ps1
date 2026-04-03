@@ -5,33 +5,42 @@ $IMAGE = "ghcr.io/doctype-melvin/complyable:linux-amd64"
 $CONTAINER_NAME = "complyable-app"
 $PODMAN_PATH = "C:\Program Files\RedHat\Podman"
 $LAUNCHER = "$env:ProgramData\Complyable\launcher.bat"
-
 $FLAG_FILE = "$env:ProgramData\Complyable\installed.flag"
 
-# --- THE FAST-TRACK (Bypass Checks if Installed) ---
+# --- Bypass Checks if Installed ---
 if (Test-Path $FLAG_FILE) {
+    # 1. Force refresh the PATH so the script can see "podman"
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
     Write-Host "Complyable is already installed. Starting services..." -ForegroundColor Green
     
+    # 2. Define the absolute path to Podman to avoid "CommandNotFound"
+    $PODMAN_EXE = "$PODMAN_PATH\podman.exe"
+
     # Ensure Podman is actually running
-    $machineStatus = podman machine inspect --format "{{.State}}" 2>$null
+    # We use & to execute the string path
+    $machineStatus = & $PODMAN_EXE machine inspect --format "{{.State}}" 2>$null
+    
     if ($machineStatus -ne "running") {
         Write-Host "Waking up Podman..." -ForegroundColor Cyan
-        podman machine start
+        & $PODMAN_EXE machine start
     }
     
     # Start gvproxy watchdog
     $proxy = Get-Process gvproxy -ErrorAction SilentlyContinue
     if (-not $proxy) {
+        Write-Host "Starting Network Bridge..." -ForegroundColor Gray
         Start-Process "$PODMAN_PATH\gvproxy.exe" -ArgumentList "-ssh-port 2222 -listen-no-zap" -WindowStyle Hidden
     }
     
     # Ensure Container is running
-    podman start $CONTAINER_NAME 2>$null
+    & $PODMAN_EXE start $CONTAINER_NAME 2>$null
     
     # Open Browser and Exit
     Start-Process "http://complyable.local:8501"
     Start-Sleep -Seconds 3
     Stop-Process -Id $PID
+    exit
 }
 
 function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
