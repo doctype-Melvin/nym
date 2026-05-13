@@ -203,7 +203,7 @@ The technical foundation is solid and the core pipeline works end to end. The co
 
 ## Author
 
-**Roger Rabbig** — Analytics Engineer & Solutions Developer  
+**Melvin** — Analytics Engineer & Solutions Developer  
 Hamburg, Germany  
 [LinkedIn](https://www.linkedin.com/in/speckamp040/)
 
