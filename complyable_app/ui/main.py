@@ -14,7 +14,7 @@ import pandas as pd
 
 
 # 1. SETUP
-st.set_page_config(page_title="Complyable", layout="wide")
+st.set_page_config(page_title="Complyable", page_icon="../assets/Comon.ico", layout="wide")
 styles.inject_custom_css()
 db.init_db_schema()
 

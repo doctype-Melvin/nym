@@ -90,7 +90,7 @@ if (!(Get-Process gvproxy -ErrorAction SilentlyContinue)) {
 Write-Step "Authenticating with GitHub Container Registry..."
 
 # For the Pilot, you would replace this with a variable or a secure prompt
-$GHCR_TOKEN = "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" 
+$GHCR_TOKEN = "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" 
 $GHCR_USER = "doctype-melvin"
 
 $GHCR_TOKEN | & "$PODMAN_PATH\podman.exe" login ghcr.io -u $GHCR_USER --password-stdin
